@@ -12,7 +12,24 @@ export default {
       const upstreamUrl = new URL(url.pathname + url.search, API_ORIGIN);
       const upstreamRequest = new Request(upstreamUrl.toString(), request);
 
-      return fetch(upstreamRequest);
+      try {
+        return await fetch(upstreamRequest);
+      } catch {
+        return new Response(
+          JSON.stringify({
+            statusCode: 502,
+            error: 'Bad Gateway',
+            message: 'Serviço temporariamente indisponível.',
+          }),
+          {
+            status: 502,
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              'Cache-Control': 'no-store',
+            },
+          },
+        );
+      }
     }
 
     return env.ASSETS.fetch(request);
