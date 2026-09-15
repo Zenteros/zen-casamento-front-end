@@ -1,0 +1,416 @@
+[
+  {
+    "originalFile": "11.jpg",
+    "role": "Hero Principal (Vertical)",
+    "originalDimensions": "2708x4088",
+    "originalSizeBytes": 3801061,
+    "originalSizeFormatted": "3.62 MB",
+    "generatedAssets": [
+      {
+        "filename": "hero-11-640w.avif",
+        "format": "AVIF",
+        "targetWidth": "640w",
+        "actualDimensions": "640x966",
+        "sizeBytes": 74165,
+        "sizeFormatted": "72.4 KB",
+        "reductionPercent": "98.0%"
+      },
+      {
+        "filename": "hero-11-640w.webp",
+        "format": "WEBP",
+        "targetWidth": "640w",
+        "actualDimensions": "640x966",
+        "sizeBytes": 66890,
+        "sizeFormatted": "65.3 KB",
+        "reductionPercent": "98.2%"
+      },
+      {
+        "filename": "hero-11-640w.jpg",
+        "format": "JPG",
+        "targetWidth": "640w",
+        "actualDimensions": "640x966",
+        "sizeBytes": 81103,
+        "sizeFormatted": "79.2 KB",
+        "reductionPercent": "97.9%"
+      },
+      {
+        "filename": "hero-11-1080w.avif",
+        "format": "AVIF",
+        "targetWidth": "1080w",
+        "actualDimensions": "1080x1630",
+        "sizeBytes": 149016,
+        "sizeFormatted": "145.5 KB",
+        "reductionPercent": "96.1%"
+      },
+      {
+        "filename": "hero-11-1080w.webp",
+        "format": "WEBP",
+        "targetWidth": "1080w",
+        "actualDimensions": "1080x1630",
+        "sizeBytes": 132198,
+        "sizeFormatted": "129.1 KB",
+        "reductionPercent": "96.5%"
+      },
+      {
+        "filename": "hero-11-1080w.jpg",
+        "format": "JPG",
+        "targetWidth": "1080w",
+        "actualDimensions": "1080x1630",
+        "sizeBytes": 177018,
+        "sizeFormatted": "172.9 KB",
+        "reductionPercent": "95.3%"
+      },
+      {
+        "filename": "hero-11-1440w.avif",
+        "format": "AVIF",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x2174",
+        "sizeBytes": 213749,
+        "sizeFormatted": "208.7 KB",
+        "reductionPercent": "94.4%"
+      },
+      {
+        "filename": "hero-11-1440w.webp",
+        "format": "WEBP",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x2174",
+        "sizeBytes": 186214,
+        "sizeFormatted": "181.8 KB",
+        "reductionPercent": "95.1%"
+      },
+      {
+        "filename": "hero-11-1440w.jpg",
+        "format": "JPG",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x2174",
+        "sizeBytes": 268055,
+        "sizeFormatted": "261.8 KB",
+        "reductionPercent": "92.9%"
+      }
+    ]
+  },
+  {
+    "originalFile": "7.jpg",
+    "role": "Editorial Break Principal (Horizontal)",
+    "originalDimensions": "4088x2708",
+    "originalSizeBytes": 3487684,
+    "originalSizeFormatted": "3.33 MB",
+    "generatedAssets": [
+      {
+        "filename": "editorial-7-640w.avif",
+        "format": "AVIF",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 68666,
+        "sizeFormatted": "67.1 KB",
+        "reductionPercent": "98.0%"
+      },
+      {
+        "filename": "editorial-7-640w.webp",
+        "format": "WEBP",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 53172,
+        "sizeFormatted": "51.9 KB",
+        "reductionPercent": "98.5%"
+      },
+      {
+        "filename": "editorial-7-640w.jpg",
+        "format": "JPG",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 49222,
+        "sizeFormatted": "48.1 KB",
+        "reductionPercent": "98.6%"
+      },
+      {
+        "filename": "editorial-7-1080w.avif",
+        "format": "AVIF",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 179912,
+        "sizeFormatted": "175.7 KB",
+        "reductionPercent": "94.8%"
+      },
+      {
+        "filename": "editorial-7-1080w.webp",
+        "format": "WEBP",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 141014,
+        "sizeFormatted": "137.7 KB",
+        "reductionPercent": "96.0%"
+      },
+      {
+        "filename": "editorial-7-1080w.jpg",
+        "format": "JPG",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 131532,
+        "sizeFormatted": "128.4 KB",
+        "reductionPercent": "96.2%"
+      },
+      {
+        "filename": "editorial-7-1440w.avif",
+        "format": "AVIF",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 305061,
+        "sizeFormatted": "297.9 KB",
+        "reductionPercent": "91.3%"
+      },
+      {
+        "filename": "editorial-7-1440w.webp",
+        "format": "WEBP",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 239752,
+        "sizeFormatted": "234.1 KB",
+        "reductionPercent": "93.1%"
+      },
+      {
+        "filename": "editorial-7-1440w.jpg",
+        "format": "JPG",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 226626,
+        "sizeFormatted": "221.3 KB",
+        "reductionPercent": "93.5%"
+      },
+      {
+        "filename": "editorial-7-1920w.avif",
+        "format": "AVIF",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 489739,
+        "sizeFormatted": "478.3 KB",
+        "reductionPercent": "86.0%"
+      },
+      {
+        "filename": "editorial-7-1920w.webp",
+        "format": "WEBP",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 398334,
+        "sizeFormatted": "389.0 KB",
+        "reductionPercent": "88.6%"
+      },
+      {
+        "filename": "editorial-7-1920w.jpg",
+        "format": "JPG",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 381209,
+        "sizeFormatted": "372.3 KB",
+        "reductionPercent": "89.1%"
+      }
+    ]
+  },
+  {
+    "originalFile": "24.jpg",
+    "role": "Editorial Break Alternativo (Horizontal)",
+    "originalDimensions": "4088x2708",
+    "originalSizeBytes": 4130354,
+    "originalSizeFormatted": "3.94 MB",
+    "generatedAssets": [
+      {
+        "filename": "editorial-alt-24-640w.avif",
+        "format": "AVIF",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 73280,
+        "sizeFormatted": "71.6 KB",
+        "reductionPercent": "98.2%"
+      },
+      {
+        "filename": "editorial-alt-24-640w.webp",
+        "format": "WEBP",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 61818,
+        "sizeFormatted": "60.4 KB",
+        "reductionPercent": "98.5%"
+      },
+      {
+        "filename": "editorial-alt-24-640w.jpg",
+        "format": "JPG",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 53979,
+        "sizeFormatted": "52.7 KB",
+        "reductionPercent": "98.7%"
+      },
+      {
+        "filename": "editorial-alt-24-1080w.avif",
+        "format": "AVIF",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 200528,
+        "sizeFormatted": "195.8 KB",
+        "reductionPercent": "95.1%"
+      },
+      {
+        "filename": "editorial-alt-24-1080w.webp",
+        "format": "WEBP",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 174434,
+        "sizeFormatted": "170.3 KB",
+        "reductionPercent": "95.8%"
+      },
+      {
+        "filename": "editorial-alt-24-1080w.jpg",
+        "format": "JPG",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 151922,
+        "sizeFormatted": "148.4 KB",
+        "reductionPercent": "96.3%"
+      },
+      {
+        "filename": "editorial-alt-24-1440w.avif",
+        "format": "AVIF",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 342578,
+        "sizeFormatted": "334.5 KB",
+        "reductionPercent": "91.7%"
+      },
+      {
+        "filename": "editorial-alt-24-1440w.webp",
+        "format": "WEBP",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 305546,
+        "sizeFormatted": "298.4 KB",
+        "reductionPercent": "92.6%"
+      },
+      {
+        "filename": "editorial-alt-24-1440w.jpg",
+        "format": "JPG",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 265853,
+        "sizeFormatted": "259.6 KB",
+        "reductionPercent": "93.6%"
+      },
+      {
+        "filename": "editorial-alt-24-1920w.avif",
+        "format": "AVIF",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 545791,
+        "sizeFormatted": "533.0 KB",
+        "reductionPercent": "86.8%"
+      },
+      {
+        "filename": "editorial-alt-24-1920w.webp",
+        "format": "WEBP",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 494068,
+        "sizeFormatted": "482.5 KB",
+        "reductionPercent": "88.0%"
+      },
+      {
+        "filename": "editorial-alt-24-1920w.jpg",
+        "format": "JPG",
+        "targetWidth": "1920w",
+        "actualDimensions": "1920x1272",
+        "sizeBytes": 448058,
+        "sizeFormatted": "437.6 KB",
+        "reductionPercent": "89.2%"
+      }
+    ]
+  },
+  {
+    "originalFile": "5.jpg",
+    "role": "Detalhe Alianças / Flores (Horizontal)",
+    "originalDimensions": "4088x2708",
+    "originalSizeBytes": 2924934,
+    "originalSizeFormatted": "2.79 MB",
+    "generatedAssets": [
+      {
+        "filename": "detail-5-640w.avif",
+        "format": "AVIF",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 43045,
+        "sizeFormatted": "42.0 KB",
+        "reductionPercent": "98.5%"
+      },
+      {
+        "filename": "detail-5-640w.webp",
+        "format": "WEBP",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 35282,
+        "sizeFormatted": "34.5 KB",
+        "reductionPercent": "98.8%"
+      },
+      {
+        "filename": "detail-5-640w.jpg",
+        "format": "JPG",
+        "targetWidth": "640w",
+        "actualDimensions": "640x424",
+        "sizeBytes": 39845,
+        "sizeFormatted": "38.9 KB",
+        "reductionPercent": "98.6%"
+      },
+      {
+        "filename": "detail-5-1080w.avif",
+        "format": "AVIF",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 85492,
+        "sizeFormatted": "83.5 KB",
+        "reductionPercent": "97.1%"
+      },
+      {
+        "filename": "detail-5-1080w.webp",
+        "format": "WEBP",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 70516,
+        "sizeFormatted": "68.9 KB",
+        "reductionPercent": "97.6%"
+      },
+      {
+        "filename": "detail-5-1080w.jpg",
+        "format": "JPG",
+        "targetWidth": "1080w",
+        "actualDimensions": "1079x715",
+        "sizeBytes": 89961,
+        "sizeFormatted": "87.9 KB",
+        "reductionPercent": "96.9%"
+      },
+      {
+        "filename": "detail-5-1440w.avif",
+        "format": "AVIF",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 121752,
+        "sizeFormatted": "118.9 KB",
+        "reductionPercent": "95.8%"
+      },
+      {
+        "filename": "detail-5-1440w.webp",
+        "format": "WEBP",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 101900,
+        "sizeFormatted": "99.5 KB",
+        "reductionPercent": "96.5%"
+      },
+      {
+        "filename": "detail-5-1440w.jpg",
+        "format": "JPG",
+        "targetWidth": "1440w",
+        "actualDimensions": "1440x954",
+        "sizeBytes": 136970,
+        "sizeFormatted": "133.8 KB",
+        "reductionPercent": "95.3%"
+      }
+    ]
+  }
+]
