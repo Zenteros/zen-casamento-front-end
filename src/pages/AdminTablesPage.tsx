@@ -15,6 +15,14 @@ import { TableSearchCombobox } from '../components/admin/TableSearchCombobox.js'
 
 const POLLING_INTERVAL_MS = 25000; // 25 segundos
 
+const normalizeText = (text: string): string => {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+};
+
 /* ──────────────────────────────────────────────
    Icons
    ────────────────────────────────────────────── */
@@ -121,6 +129,14 @@ export const AdminTablesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [tableFilter, setTableFilter] = useState<'ALL' | 'AVAILABLE' | 'FULL' | 'EMPTY'>('ALL');
   const [unassignedFilter, setUnassignedFilter] = useState<'ALL' | 'CONFIRMED' | 'CHILDREN' | 'PENDING'>('ALL');
+
+  // Modal Consolidado de Convidados Sem Mesa
+  const [isUnassignedModalOpen, setIsUnassignedModalOpen] = useState(false);
+  const [modalSearchTerm, setModalSearchTerm] = useState<string>('');
+  const [modalFilter, setModalFilter] = useState<'ALL' | 'CONFIRMED' | 'CHILDREN' | 'PENDING'>('ALL');
+
+  // Limite visual da fila rápida lateral
+  const SIDEBAR_MAX_UNASSIGNED = 8;
 
   // Modais
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -490,9 +506,29 @@ export const AdminTablesPage: React.FC = () => {
     return unassignedGuests.filter((g) => g.rsvpStatus !== 'DECLINED');
   }, [unassignedGuests]);
 
+  // Contagens consolidadas dos convidados sem mesa elegíveis
+  const unassignedSummary = useMemo(() => {
+    let confirmed = 0;
+    let pending = 0;
+    let children = 0;
+
+    for (const g of eligibleUnassignedGuests) {
+      if (g.rsvpStatus === 'CONFIRMED') confirmed++;
+      else if (g.rsvpStatus === 'PENDING') pending++;
+      if (g.isChild) children++;
+    }
+
+    return {
+      total: eligibleUnassignedGuests.length,
+      confirmed,
+      pending,
+      children,
+    };
+  }, [eligibleUnassignedGuests]);
+
   // Filtros computados de mesas
   const filteredTables = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = normalizeText(searchTerm);
     return tables.filter((t) => {
       // 1. Filtro por status
       if (tableFilter === 'AVAILABLE' && t.available === 0) return false;
@@ -501,27 +537,40 @@ export const AdminTablesPage: React.FC = () => {
 
       // 2. Busca por texto
       if (!q) return true;
-      const matchName = t.name.toLowerCase().includes(q);
-      const matchLocation = t.locationHint?.toLowerCase().includes(q) || false;
+      const matchName = normalizeText(t.name).includes(q);
+      const matchLocation = normalizeText(t.locationHint || '').includes(q);
       const matchGuest = t.guests.some(
-        (g) => g.name.toLowerCase().includes(q) || g.familyTitle.toLowerCase().includes(q)
+        (g) => normalizeText(g.name).includes(q) || normalizeText(g.familyTitle || '').includes(q)
       );
       return matchName || matchLocation || matchGuest;
     });
   }, [tables, tableFilter, searchTerm]);
 
-  // Filtros computados de convidados sem mesa (apenas elegíveis)
+  // Filtros computados de convidados sem mesa (fila rápida lateral)
   const filteredUnassignedGuests = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = normalizeText(searchTerm);
     return eligibleUnassignedGuests.filter((g) => {
       if (unassignedFilter === 'CONFIRMED' && g.rsvpStatus !== 'CONFIRMED') return false;
       if (unassignedFilter === 'CHILDREN' && !g.isChild) return false;
       if (unassignedFilter === 'PENDING' && g.rsvpStatus !== 'PENDING') return false;
 
       if (!q) return true;
-      return g.name.toLowerCase().includes(q) || g.familyTitle.toLowerCase().includes(q);
+      return normalizeText(g.name).includes(q) || normalizeText(g.familyTitle || '').includes(q);
     });
   }, [eligibleUnassignedGuests, unassignedFilter, searchTerm]);
+
+  // Filtros computados de convidados dentro do Modal Consolidado
+  const modalFilteredGuests = useMemo(() => {
+    const q = normalizeText(modalSearchTerm);
+    return eligibleUnassignedGuests.filter((g) => {
+      if (modalFilter === 'CONFIRMED' && g.rsvpStatus !== 'CONFIRMED') return false;
+      if (modalFilter === 'CHILDREN' && !g.isChild) return false;
+      if (modalFilter === 'PENDING' && g.rsvpStatus !== 'PENDING') return false;
+
+      if (!q) return true;
+      return normalizeText(g.name).includes(q) || normalizeText(g.familyTitle || '').includes(q);
+    });
+  }, [eligibleUnassignedGuests, modalFilter, modalSearchTerm]);
 
   const formatTimeOnly = (date: Date) => {
     try {
@@ -670,9 +719,31 @@ export const AdminTablesPage: React.FC = () => {
             <span className="admin-stat-box__label">Mesas c/ Vagas</span>
             <strong className="admin-stat-box__val">{counts.tablesWithAvailableSeats}</strong>
           </div>
-          <div className="admin-stat-box admin-stat-box--pending">
-            <span className="admin-stat-box__label">Sem Mesa</span>
-            <strong className="admin-stat-box__val">{counts.withoutTableGuests}</strong>
+          <div
+            className="admin-stat-box admin-stat-box--pending admin-stat-box--clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setModalSearchTerm('');
+              setModalFilter('ALL');
+              setIsUnassignedModalOpen(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setModalSearchTerm('');
+                setModalFilter('ALL');
+                setIsUnassignedModalOpen(true);
+              }
+            }}
+            title="Clique para abrir a fila completa de convidados sem mesa"
+            aria-label="Abrir lista de convidados sem mesa"
+          >
+            <div className="admin-stat-box__label-row">
+              <span className="admin-stat-box__label">Sem Mesa</span>
+              <span className="admin-stat-box__hint-icon" aria-hidden="true">↗</span>
+            </div>
+            <strong className="admin-stat-box__val">{unassignedSummary.total}</strong>
           </div>
         </section>
 
@@ -760,10 +831,21 @@ export const AdminTablesPage: React.FC = () => {
               <div className="admin-unassigned-title-wrap">
                 <span className="admin-unassigned-icon">⚠️</span>
                 <h2 className="admin-unassigned-title">Sem Mesa</h2>
-                <span className="admin-unassigned-badge">{unassignedGuests.length}</span>
+                <button
+                  type="button"
+                  className="admin-unassigned-badge-btn"
+                  onClick={() => {
+                    setModalSearchTerm('');
+                    setModalFilter('ALL');
+                    setIsUnassignedModalOpen(true);
+                  }}
+                  title="Abrir modal completo de sem mesa"
+                >
+                  <span className="admin-unassigned-badge">{unassignedSummary.total}</span>
+                </button>
               </div>
               <span className="admin-unassigned-subtitle">
-                Convidados aguardando alocação
+                Fila rápida de convidados elegíveis
               </span>
             </div>
 
@@ -774,80 +856,112 @@ export const AdminTablesPage: React.FC = () => {
                 className={`admin-unassigned-filter-btn ${unassignedFilter === 'ALL' ? 'admin-unassigned-filter-btn--active' : ''}`}
                 onClick={() => setUnassignedFilter('ALL')}
               >
-                Todos ({unassignedGuests.length})
+                Todos ({unassignedSummary.total})
               </button>
               <button
                 type="button"
                 className={`admin-unassigned-filter-btn ${unassignedFilter === 'CONFIRMED' ? 'admin-unassigned-filter-btn--active' : ''}`}
                 onClick={() => setUnassignedFilter('CONFIRMED')}
               >
-                Confirmados
+                Confirmados ({unassignedSummary.confirmed})
+              </button>
+              <button
+                type="button"
+                className={`admin-unassigned-filter-btn ${unassignedFilter === 'PENDING' ? 'admin-unassigned-filter-btn--active' : ''}`}
+                onClick={() => setUnassignedFilter('PENDING')}
+              >
+                Pendentes ({unassignedSummary.pending})
               </button>
               <button
                 type="button"
                 className={`admin-unassigned-filter-btn ${unassignedFilter === 'CHILDREN' ? 'admin-unassigned-filter-btn--active' : ''}`}
                 onClick={() => setUnassignedFilter('CHILDREN')}
               >
-                Crianças
+                Crianças ({unassignedSummary.children})
               </button>
+            </div>
+
+            {/* Contador auxiliar explícito */}
+            <div className="admin-unassigned-counter-helper">
+              <span>
+                Mostrando <strong>{filteredUnassignedGuests.length}</strong> de <strong>{unassignedSummary.total}</strong>
+              </span>
             </div>
 
             {/* Lista de convidados sem mesa */}
             <div className="admin-unassigned-list">
               {filteredUnassignedGuests.length === 0 ? (
                 <div className="admin-unassigned-empty">
-                  {unassignedGuests.length === 0 ? (
+                  {unassignedSummary.total === 0 ? (
                     <p>🎉 Todos os convidados cadastrados já possuem mesa atribuída!</p>
                   ) : (
                     <p>Nenhum convidado sem mesa para o filtro selecionado.</p>
                   )}
                 </div>
               ) : (
-                filteredUnassignedGuests.map((guest) => (
-                  <div key={guest.id} className="admin-unassigned-card">
-                    <div className="admin-unassigned-card__info">
-                      <div className="admin-unassigned-card__name-row">
-                        <strong className="admin-unassigned-card__name">{guest.name}</strong>
-                        {guest.isChild && (
-                          <span className="admin-badge admin-badge--child">Criança</span>
-                        )}
+                <>
+                  {filteredUnassignedGuests.slice(0, SIDEBAR_MAX_UNASSIGNED).map((guest) => (
+                    <div key={guest.id} className="admin-unassigned-card">
+                      <div className="admin-unassigned-card__info">
+                        <div className="admin-unassigned-card__name-row">
+                          <strong className="admin-unassigned-card__name">{guest.name}</strong>
+                          {guest.isChild && (
+                            <span className="admin-badge admin-badge--child">Criança</span>
+                          )}
+                        </div>
+                        <span className="admin-unassigned-card__family">{guest.familyTitle || 'Sem família especificada'}</span>
+                        <div className="admin-unassigned-card__tags">
+                          {renderRsvpBadge(guest.rsvpStatus)}
+                          {guest.isCheckedIn ? (
+                            <span className="admin-tag-sub admin-tag-sub--present">Presente</span>
+                          ) : (
+                            <span className="admin-tag-sub">Aguardando</span>
+                          )}
+                          {guest.dietaryRestrictions && (
+                            <span className="admin-tag-sub admin-tag-sub--dietary" title={guest.dietaryRestrictions}>
+                              {guest.dietaryRestrictions}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="admin-unassigned-card__family">{guest.familyTitle}</span>
-                      <div className="admin-unassigned-card__tags">
-                        {renderRsvpBadge(guest.rsvpStatus)}
-                        {guest.isCheckedIn ? (
-                          <span className="admin-tag-sub admin-tag-sub--present">Presente</span>
-                        ) : (
-                          <span className="admin-tag-sub">Aguardando</span>
-                        )}
-                        {guest.dietaryRestrictions && (
-                          <span className="admin-tag-sub admin-tag-sub--dietary" title={guest.dietaryRestrictions}>
-                            {guest.dietaryRestrictions}
-                          </span>
-                        )}
-                      </div>
-                    </div>
 
-                    <div className="admin-unassigned-card__actions">
+                      <div className="admin-unassigned-card__actions">
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn--sm admin-btn--primary"
+                          onClick={() => handleOpenAllocateModal(guest)}
+                          title="Alocar este convidado em uma mesa"
+                        >
+                          Alocar
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn--sm admin-btn--outline"
+                          onClick={() => handleOpenAllocateFamilyModal(guest)}
+                          title="Alocar todos os membros da família nesta mesa"
+                        >
+                          <UsersIcon /> Família
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {unassignedSummary.total > 0 && (
+                    <div className="admin-unassigned-footer-action">
                       <button
                         type="button"
-                        className="admin-btn admin-btn--sm admin-btn--primary"
-                        onClick={() => handleOpenAllocateModal(guest)}
-                        title="Alocar este convidado em uma mesa"
+                        className="admin-btn admin-btn--outline admin-btn--sm admin-btn--full-width admin-unassigned-view-all-btn"
+                        onClick={() => {
+                          setModalFilter(unassignedFilter);
+                          setModalSearchTerm(searchTerm);
+                          setIsUnassignedModalOpen(true);
+                        }}
                       >
-                        Alocar
-                      </button>
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn--sm admin-btn--outline"
-                        onClick={() => handleOpenAllocateFamilyModal(guest)}
-                        title="Alocar todos os membros da família nesta mesa"
-                      >
-                        <UsersIcon /> Família
+                        Ver todos os {unassignedSummary.total} sem mesa &rarr;
                       </button>
                     </div>
-                  </div>
-                ))
+                  )}
+                </>
               )}
             </div>
           </aside>
@@ -1011,6 +1125,174 @@ export const AdminTablesPage: React.FC = () => {
             )}
           </section>
         </div>
+
+        {/* ══════════════════════════════════════════════════════
+            MODAL 0: FILA COMPLETA DE CONVIDADOS SEM MESA
+            ══════════════════════════════════════════════════════ */}
+        <AdminModal
+          isOpen={isUnassignedModalOpen}
+          onClose={() => setIsUnassignedModalOpen(false)}
+          title="Convidados sem mesa"
+          meta="Convidados elegíveis que ainda aguardam alocação."
+          size="lg"
+          className="admin-unassigned-modal"
+        >
+          <div className="admin-modal-body admin-unassigned-modal__body">
+            {/* Resumo no Topo do Modal */}
+            <div className="admin-unassigned-modal__summary-grid" role="region" aria-label="Resumo de convidados sem mesa">
+              <div className="admin-unassigned-modal__stat-card">
+                <span className="admin-unassigned-modal__stat-label">Total sem mesa</span>
+                <strong className="admin-unassigned-modal__stat-value">{unassignedSummary.total}</strong>
+              </div>
+              <div className="admin-unassigned-modal__stat-card admin-unassigned-modal__stat-card--confirmed">
+                <span className="admin-unassigned-modal__stat-label">Confirmados</span>
+                <strong className="admin-unassigned-modal__stat-value">{unassignedSummary.confirmed}</strong>
+              </div>
+              <div className="admin-unassigned-modal__stat-card admin-unassigned-modal__stat-card--pending">
+                <span className="admin-unassigned-modal__stat-label">Pendentes</span>
+                <strong className="admin-unassigned-modal__stat-value">{unassignedSummary.pending}</strong>
+              </div>
+              <div className="admin-unassigned-modal__stat-card admin-unassigned-modal__stat-card--child">
+                <span className="admin-unassigned-modal__stat-label">Crianças</span>
+                <strong className="admin-unassigned-modal__stat-value">{unassignedSummary.children}</strong>
+              </div>
+            </div>
+
+            {/* Toolbar com Busca e Filtros */}
+            <div className="admin-unassigned-modal__toolbar">
+              <div className="admin-search-wrap admin-unassigned-modal__search">
+                <span className="admin-search-icon">
+                  <SearchIcon />
+                </span>
+                <input
+                  type="text"
+                  className="admin-search-input"
+                  placeholder="Buscar convidado ou família..."
+                  value={modalSearchTerm}
+                  onChange={(e) => setModalSearchTerm(e.target.value)}
+                  aria-label="Buscar convidado ou família sem mesa"
+                />
+                {modalSearchTerm && (
+                  <button
+                    type="button"
+                    className="admin-search-clear"
+                    onClick={() => setModalSearchTerm('')}
+                    title="Limpar busca"
+                    aria-label="Limpar busca"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="admin-unassigned-modal__filters-row">
+                <div className="admin-unassigned-filters" role="group" aria-label="Filtro de convidados no modal">
+                  <button
+                    type="button"
+                    className={`admin-unassigned-filter-btn ${modalFilter === 'ALL' ? 'admin-unassigned-filter-btn--active' : ''}`}
+                    onClick={() => setModalFilter('ALL')}
+                  >
+                    Todos ({unassignedSummary.total})
+                  </button>
+                  <button
+                    type="button"
+                    className={`admin-unassigned-filter-btn ${modalFilter === 'CONFIRMED' ? 'admin-unassigned-filter-btn--active' : ''}`}
+                    onClick={() => setModalFilter('CONFIRMED')}
+                  >
+                    Confirmados ({unassignedSummary.confirmed})
+                  </button>
+                  <button
+                    type="button"
+                    className={`admin-unassigned-filter-btn ${modalFilter === 'PENDING' ? 'admin-unassigned-filter-btn--active' : ''}`}
+                    onClick={() => setModalFilter('PENDING')}
+                  >
+                    Pendentes ({unassignedSummary.pending})
+                  </button>
+                  <button
+                    type="button"
+                    className={`admin-unassigned-filter-btn ${modalFilter === 'CHILDREN' ? 'admin-unassigned-filter-btn--active' : ''}`}
+                    onClick={() => setModalFilter('CHILDREN')}
+                  >
+                    Crianças ({unassignedSummary.children})
+                  </button>
+                </div>
+
+                <div className="admin-unassigned-modal__counter-badge">
+                  Mostrando <strong>{modalFilteredGuests.length}</strong> de <strong>{unassignedSummary.total}</strong> convidados sem mesa
+                </div>
+              </div>
+            </div>
+
+            {/* Listagem Completa com Scroll Interno */}
+            <div className="admin-unassigned-modal__list">
+              {modalFilteredGuests.length === 0 ? (
+                <div className="admin-unassigned-empty">
+                  {unassignedSummary.total === 0 ? (
+                    <p>🎉 Todos os convidados cadastrados já possuem mesa atribuída!</p>
+                  ) : (
+                    <p>Nenhum convidado sem mesa encontrado para a busca ou filtro selecionado.</p>
+                  )}
+                </div>
+              ) : (
+                modalFilteredGuests.map((guest) => (
+                  <div key={guest.id} className="admin-unassigned-modal__card">
+                    <div className="admin-unassigned-modal__card-info">
+                      <div className="admin-unassigned-card__name-row">
+                        <strong className="admin-unassigned-card__name">{guest.name}</strong>
+                        {guest.isChild && (
+                          <span className="admin-badge admin-badge--child">Criança</span>
+                        )}
+                      </div>
+                      <span className="admin-unassigned-card__family">{guest.familyTitle || 'Sem família especificada'}</span>
+                      <div className="admin-unassigned-card__tags">
+                        {renderRsvpBadge(guest.rsvpStatus)}
+                        {guest.isCheckedIn ? (
+                          <span className="admin-tag-sub admin-tag-sub--present">Presente</span>
+                        ) : (
+                          <span className="admin-tag-sub">Aguardando</span>
+                        )}
+                        {guest.dietaryRestrictions && (
+                          <span className="admin-tag-sub admin-tag-sub--dietary" title={guest.dietaryRestrictions}>
+                            {guest.dietaryRestrictions}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="admin-unassigned-modal__card-actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--sm admin-btn--primary"
+                        onClick={() => handleOpenAllocateModal(guest)}
+                        title="Alocar este convidado em uma mesa"
+                      >
+                        Alocar
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--sm admin-btn--outline"
+                        onClick={() => handleOpenAllocateFamilyModal(guest)}
+                        title="Alocar todos os membros da família nesta mesa"
+                      >
+                        <UsersIcon /> Família
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="admin-modal-footer">
+            <button
+              type="button"
+              className="admin-btn admin-btn--outline"
+              onClick={() => setIsUnassignedModalOpen(false)}
+            >
+              Fechar
+            </button>
+          </div>
+        </AdminModal>
 
         {/* ══════════════════════════════════════════════════════
             MODAL 1: CADASTRAR NOVA MESA
