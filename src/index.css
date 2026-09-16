@@ -6482,7 +6482,7 @@ html, body {
   background-color: rgba(22, 18, 17, 0.65);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
-  z-index: 1000;
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6641,6 +6641,231 @@ html, body {
     align-items: center;
     justify-content: space-between;
   }
+}
+
+.admin-modal-scrollable-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+/* ─── Autocomplete / Combobox de Convidados ─── */
+.admin-combobox {
+  width: 100%;
+  position: relative;
+}
+
+.admin-combobox__input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-combobox__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-combobox__icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.admin-combobox__input {
+  width: 100%;
+  padding-left: 2.35rem;
+  padding-right: 2.2rem;
+  height: 42px;
+  font-size: 0.92rem;
+  border: 1.5px solid rgba(107, 92, 87, 0.2);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.admin-combobox__input:focus {
+  outline: none;
+  border-color: var(--color-terracotta);
+  box-shadow: 0 0 0 3px rgba(193, 107, 79, 0.15);
+}
+
+.admin-combobox__clear-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.admin-combobox__clear-btn:hover {
+  color: var(--color-terracotta);
+}
+
+.admin-combobox__dropdown {
+  border: 1.5px solid rgba(107, 92, 87, 0.18);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  max-height: 270px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.admin-combobox__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.admin-combobox__option {
+  padding: 0.65rem 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(107, 92, 87, 0.08);
+  transition: background-color 0.15s ease;
+}
+
+.admin-combobox__option:last-child {
+  border-bottom: none;
+}
+
+.admin-combobox__option:hover,
+.admin-combobox__option--highlighted {
+  background-color: rgba(193, 107, 79, 0.08);
+}
+
+.admin-combobox__option-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-combobox__option-name {
+  font-size: 0.92rem;
+  color: var(--color-text-main);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-combobox__option-family {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-combobox-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.admin-combobox__empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ─── Card de Convidado Selecionado ─── */
+.admin-selected-guest-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background-color: rgba(247, 244, 239, 0.8);
+  border: 1.5px solid var(--color-terracotta);
+  border-radius: var(--radius-sm);
+  animation: adminModalFadeIn 0.2s ease;
+}
+
+.admin-selected-guest-card__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.admin-selected-guest-card__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: rgba(193, 107, 79, 0.15);
+  color: var(--color-terracotta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-selected-guest-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.admin-selected-guest-card__name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-selected-guest-card__name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.admin-selected-guest-card__family {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.admin-selected-guest-card__tags {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+.admin-selected-guest-card__actions {
+  flex-shrink: 0;
 }
 
 .admin-dynamic-guests-list {

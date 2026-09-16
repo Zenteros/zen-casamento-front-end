@@ -9,6 +9,8 @@ import type {
 } from '../contracts/index.js';
 import { Monogram } from '../components/Monogram.js';
 import { apiFetch } from '../lib/api.js';
+import { AdminModal } from '../components/admin/AdminModal.js';
+import { GuestSearchCombobox } from '../components/admin/GuestSearchCombobox.js';
 
 const POLLING_INTERVAL_MS = 25000; // 25 segundos
 
@@ -451,8 +453,7 @@ export const AdminTablesPage: React.FC = () => {
   // 9. Adicionar Convidado Sem Mesa diretamente a partir do card da mesa
   const handleOpenAddGuestToTableModal = (table: AdminTableItemDTO) => {
     setTableToAddGuest(table);
-    const eligible = unassignedGuests.filter((g) => g.rsvpStatus !== 'DECLINED');
-    setSelectedUnassignedGuestId(eligible.length > 0 ? eligible[0].id : '');
+    setSelectedUnassignedGuestId('');
   };
 
   const handleConfirmAddGuestToTable = async () => {
@@ -1008,375 +1009,323 @@ export const AdminTablesPage: React.FC = () => {
         {/* ══════════════════════════════════════════════════════
             MODAL 1: CADASTRAR NOVA MESA
             ══════════════════════════════════════════════════════ */}
-        {isCreateModalOpen && (
-          <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
-              <div className="admin-modal-header">
-                <div>
-                  <h2 className="admin-modal-title">Cadastrar Nova Mesa</h2>
-                  <span className="admin-modal-meta">Adicionar mesa à Casa de Eventos La Brace</span>
+        <AdminModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          title="Cadastrar Nova Mesa"
+          meta="Adicionar mesa à Casa de Eventos La Brace"
+          size="md"
+        >
+          <form onSubmit={handleCreateSubmit} className="admin-modal-scrollable-content">
+            <div className="admin-modal-body">
+              {createError && (
+                <div className="admin-alert admin-alert--error" role="alert">
+                  <span>{createError}</span>
                 </div>
-                <button
-                  type="button"
-                  className="admin-modal-close"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  aria-label="Fechar modal"
-                >
-                  &times;
-                </button>
+              )}
+
+              <div className="admin-form-group">
+                <label htmlFor="create-table-name" className="admin-label">
+                  Nome / Número da Mesa *
+                </label>
+                <input
+                  id="create-table-name"
+                  type="text"
+                  className="admin-input"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="Ex: Mesa 08 - Família Silva"
+                  required
+                />
               </div>
 
-              <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                <div className="admin-modal-body">
-                  {createError && (
-                    <div className="admin-alert admin-alert--error" role="alert">
-                      <span>{createError}</span>
-                    </div>
-                  )}
+              <div className="admin-form-group">
+                <label htmlFor="create-table-capacity" className="admin-label">
+                  Capacidade Total (Lugares) *
+                </label>
+                <input
+                  id="create-table-capacity"
+                  type="number"
+                  min="1"
+                  max="50"
+                  className="admin-input"
+                  value={createCapacity}
+                  onChange={(e) => setCreateCapacity(e.target.value)}
+                  required
+                />
+                <span className="admin-input-hint">Padrão de 8 a 10 lugares por mesa na La Brace.</span>
+              </div>
 
-                  <div className="admin-form-group">
-                    <label htmlFor="create-table-name" className="admin-label">
-                      Nome / Número da Mesa *
-                    </label>
-                    <input
-                      id="create-table-name"
-                      type="text"
-                      className="admin-input"
-                      value={createName}
-                      onChange={(e) => setCreateName(e.target.value)}
-                      placeholder="Ex: Mesa 08 - Família Silva"
-                      required
-                    />
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label htmlFor="create-table-capacity" className="admin-label">
-                      Capacidade Total (Lugares) *
-                    </label>
-                    <input
-                      id="create-table-capacity"
-                      type="number"
-                      min="1"
-                      max="50"
-                      className="admin-input"
-                      value={createCapacity}
-                      onChange={(e) => setCreateCapacity(e.target.value)}
-                      required
-                    />
-                    <span className="admin-input-hint">Padrão de 8 a 10 lugares por mesa na La Brace.</span>
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label htmlFor="create-table-location" className="admin-label">
-                      Dica de Localização no Salão (Opcional)
-                    </label>
-                    <input
-                      id="create-table-location"
-                      type="text"
-                      className="admin-input"
-                      value={createLocationHint}
-                      onChange={(e) => setCreateLocationHint(e.target.value)}
-                      placeholder="Ex: Lateral direita, próximo ao jardim"
-                    />
-                  </div>
-                </div>
-
-                <div className="admin-modal-footer">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--outline"
-                    onClick={() => setIsCreateModalOpen(false)}
-                    disabled={isSubmittingCreate}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="admin-btn admin-btn--primary"
-                    disabled={isSubmittingCreate}
-                  >
-                    {isSubmittingCreate ? 'Salvando...' : 'Criar Mesa'}
-                  </button>
-                </div>
-              </form>
+              <div className="admin-form-group">
+                <label htmlFor="create-table-location" className="admin-label">
+                  Dica de Localização no Salão (Opcional)
+                </label>
+                <input
+                  id="create-table-location"
+                  type="text"
+                  className="admin-input"
+                  value={createLocationHint}
+                  onChange={(e) => setCreateLocationHint(e.target.value)}
+                  placeholder="Ex: Lateral direita, próximo ao jardim"
+                />
+              </div>
             </div>
-          </div>
-        )}
+
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                className="admin-btn admin-btn--outline"
+                onClick={() => setIsCreateModalOpen(false)}
+                disabled={isSubmittingCreate}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="admin-btn admin-btn--primary"
+                disabled={isSubmittingCreate}
+              >
+                {isSubmittingCreate ? 'Salvando...' : 'Criar Mesa'}
+              </button>
+            </div>
+          </form>
+        </AdminModal>
 
         {/* ══════════════════════════════════════════════════════
             MODAL 2: EDITAR MESA
             ══════════════════════════════════════════════════════ */}
-        {editingTable && (
-          <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
-              <div className="admin-modal-header">
-                <div>
-                  <h2 className="admin-modal-title">Editar Mesa</h2>
-                  <span className="admin-modal-meta">Alterar nome, capacidade ou localização</span>
+        <AdminModal
+          isOpen={!!editingTable}
+          onClose={() => setEditingTable(null)}
+          title="Editar Mesa"
+          meta="Alterar nome, capacidade ou localização"
+          size="md"
+        >
+          {editingTable && (
+            <form onSubmit={handleEditSubmit} className="admin-modal-scrollable-content">
+              <div className="admin-modal-body">
+                {editError && (
+                  <div className="admin-alert admin-alert--error" role="alert">
+                    <span>{editError}</span>
+                  </div>
+                )}
+
+                <div className="admin-form-group">
+                  <label htmlFor="edit-table-name" className="admin-label">
+                    Nome / Número da Mesa *
+                  </label>
+                  <input
+                    id="edit-table-name"
+                    type="text"
+                    className="admin-input"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
                 </div>
-                <button
-                  type="button"
-                  className="admin-modal-close"
-                  onClick={() => setEditingTable(null)}
-                  aria-label="Fechar modal"
-                >
-                  &times;
-                </button>
+
+                <div className="admin-form-group">
+                  <label htmlFor="edit-table-capacity" className="admin-label">
+                    Capacidade Total (Lugares) *
+                  </label>
+                  <input
+                    id="edit-table-capacity"
+                    type="number"
+                    min="1"
+                    max="50"
+                    className="admin-input"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(e.target.value)}
+                    required
+                  />
+                  <span className="admin-input-hint">
+                    Ocupação atual: <strong>{editingTable.occupied} convidados</strong>. A capacidade não pode ser menor que a ocupação.
+                  </span>
+                </div>
+
+                <div className="admin-form-group">
+                  <label htmlFor="edit-table-location" className="admin-label">
+                    Dica de Localização no Salão (Opcional)
+                  </label>
+                  <input
+                    id="edit-table-location"
+                    type="text"
+                    className="admin-input"
+                    value={editLocationHint}
+                    onChange={(e) => setEditLocationHint(e.target.value)}
+                    placeholder="Ex: Lateral direita, próximo ao jardim"
+                  />
+                </div>
               </div>
 
-              <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                <div className="admin-modal-body">
-                  {editError && (
-                    <div className="admin-alert admin-alert--error" role="alert">
-                      <span>{editError}</span>
-                    </div>
-                  )}
-
-                  <div className="admin-form-group">
-                    <label htmlFor="edit-table-name" className="admin-label">
-                      Nome / Número da Mesa *
-                    </label>
-                    <input
-                      id="edit-table-name"
-                      type="text"
-                      className="admin-input"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label htmlFor="edit-table-capacity" className="admin-label">
-                      Capacidade Total (Lugares) *
-                    </label>
-                    <input
-                      id="edit-table-capacity"
-                      type="number"
-                      min="1"
-                      max="50"
-                      className="admin-input"
-                      value={editCapacity}
-                      onChange={(e) => setEditCapacity(e.target.value)}
-                      required
-                    />
-                    <span className="admin-input-hint">
-                      Ocupação atual: <strong>{editingTable.occupied} convidados</strong>. A capacidade não pode ser menor que a ocupação.
-                    </span>
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label htmlFor="edit-table-location" className="admin-label">
-                      Dica de Localização no Salão (Opcional)
-                    </label>
-                    <input
-                      id="edit-table-location"
-                      type="text"
-                      className="admin-input"
-                      value={editLocationHint}
-                      onChange={(e) => setEditLocationHint(e.target.value)}
-                      placeholder="Ex: Lateral direita, próximo ao jardim"
-                    />
-                  </div>
-                </div>
-
-                <div className="admin-modal-footer">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--outline"
-                    onClick={() => setEditingTable(null)}
-                    disabled={isSubmittingEdit}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="admin-btn admin-btn--primary"
-                    disabled={isSubmittingEdit}
-                  >
-                    {isSubmittingEdit ? 'Salvando...' : 'Salvar Alterações'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline"
+                  onClick={() => setEditingTable(null)}
+                  disabled={isSubmittingEdit}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn--primary"
+                  disabled={isSubmittingEdit}
+                >
+                  {isSubmittingEdit ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          )}
+        </AdminModal>
 
         {/* ══════════════════════════════════════════════════════
             MODAL 3: ALOCAR / MOVER CONVIDADO OU FAMÍLIA
             ══════════════════════════════════════════════════════ */}
-        {allocatingGuest && (
-          <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
-              <div className="admin-modal-header">
-                <div>
-                  <h2 className="admin-modal-title">
-                    {isAllocatingFamily ? 'Alocar Família em Mesa' : 'Alocar Convidado em Mesa'}
-                  </h2>
-                  <span className="admin-modal-meta">
-                    {isAllocatingFamily
-                      ? 'Definir mesa para todos os integrantes elegíveis do convite'
-                      : 'Definir ou alterar a mesa do convidado'}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="admin-modal-close"
-                  onClick={() => setAllocatingGuest(null)}
-                  aria-label="Fechar modal"
-                >
-                  &times;
-                </button>
-              </div>
+        <AdminModal
+          isOpen={!!allocatingGuest}
+          onClose={() => setAllocatingGuest(null)}
+          title={isAllocatingFamily ? 'Alocar Família em Mesa' : 'Alocar Convidado em Mesa'}
+          meta={
+            isAllocatingFamily
+              ? 'Definir mesa para todos os integrantes elegíveis do convite'
+              : 'Definir ou alterar a mesa do convidado'
+          }
+          size="md"
+        >
+          {allocatingGuest && (
+            <div className="admin-modal-scrollable-content">
+              <div className="admin-modal-body">
+                {allocationError && (
+                  <div className="admin-alert admin-alert--error" role="alert">
+                    <span>{allocationError}</span>
+                  </div>
+                )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                <div className="admin-modal-body">
-                  {allocationError && (
-                    <div className="admin-alert admin-alert--error" role="alert">
-                      <span>{allocationError}</span>
+                <div className="admin-allocation-target-info">
+                  {isAllocatingFamily ? (
+                    <div>
+                      <span className="admin-label">Família / Convite:</span>
+                      <strong className="admin-target-name">{allocatingGuest.familyTitle}</strong>
+                      <p className="admin-allocation-note">
+                        Esta ação alocará os membros elegíveis deste convite na mesa selecionada.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <span className="admin-label">Convidado:</span>
+                      <strong className="admin-target-name">{allocatingGuest.name}</strong>
+                      <span className="admin-target-sub">{allocatingGuest.familyTitle}</span>
                     </div>
                   )}
-
-                  <div className="admin-allocation-target-info">
-                    {isAllocatingFamily ? (
-                      <div>
-                        <span className="admin-label">Família / Convite:</span>
-                        <strong className="admin-target-name">{allocatingGuest.familyTitle}</strong>
-                        <p className="admin-allocation-note">
-                          Esta ação alocará os membros elegíveis deste convite na mesa selecionada.
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <span className="admin-label">Convidado:</span>
-                        <strong className="admin-target-name">{allocatingGuest.name}</strong>
-                        <span className="admin-target-sub">{allocatingGuest.familyTitle}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="admin-form-group">
-                    <label htmlFor="target-table-select" className="admin-label">
-                      Selecione a Mesa de Destino *
-                    </label>
-                    <select
-                      id="target-table-select"
-                      className="admin-select"
-                      value={selectedTargetTableId}
-                      onChange={(e) => setSelectedTargetTableId(e.target.value)}
-                    >
-                      <option value="">-- Escolha uma mesa --</option>
-                      {tables.map((t) => (
-                        <option
-                          key={t.id}
-                          value={t.id}
-                          disabled={t.available === 0}
-                        >
-                          {t.name} ({t.occupied}/{t.capacity} lugares &bull; {t.available} {t.available === 1 ? 'vaga livre' : 'vagas livres'})
-                          {t.locationHint ? ` - ${t.locationHint}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
-                <div className="admin-modal-footer">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--outline"
-                    onClick={() => setAllocatingGuest(null)}
-                    disabled={isSubmittingAllocation}
+                <div className="admin-form-group">
+                  <label htmlFor="target-table-select" className="admin-label">
+                    Selecione a Mesa de Destino *
+                  </label>
+                  <select
+                    id="target-table-select"
+                    className="admin-select"
+                    value={selectedTargetTableId}
+                    onChange={(e) => setSelectedTargetTableId(e.target.value)}
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--primary"
-                    onClick={handleConfirmAllocation}
-                    disabled={!selectedTargetTableId || isSubmittingAllocation}
-                  >
-                    {isSubmittingAllocation ? 'Alocando...' : 'Confirmar Alocação'}
-                  </button>
+                    <option value="">-- Escolha uma mesa --</option>
+                    {tables.map((t) => (
+                      <option
+                        key={t.id}
+                        value={t.id}
+                        disabled={t.available === 0}
+                      >
+                        {t.name} ({t.occupied}/{t.capacity} lugares &bull; {t.available} {t.available === 1 ? 'vaga livre' : 'vagas livres'})
+                        {t.locationHint ? ` - ${t.locationHint}` : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              <div className="admin-modal-footer">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline"
+                  onClick={() => setAllocatingGuest(null)}
+                  disabled={isSubmittingAllocation}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--primary"
+                  onClick={handleConfirmAllocation}
+                  disabled={!selectedTargetTableId || isSubmittingAllocation}
+                >
+                  {isSubmittingAllocation ? 'Alocando...' : 'Confirmar Alocação'}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </AdminModal>
 
         {/* ══════════════════════════════════════════════════════
             MODAL 4: ADICIONAR CONVIDADO DIRETAMENTE À MESA
             ══════════════════════════════════════════════════════ */}
-        {tableToAddGuest && (
-          <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
-              <div className="admin-modal-header">
-                <div>
-                  <h2 className="admin-modal-title">Adicionar à {tableToAddGuest.name}</h2>
-                  <span className="admin-modal-meta">
-                    Capacidade: {tableToAddGuest.occupied}/{tableToAddGuest.capacity} lugares &bull; {tableToAddGuest.available} {tableToAddGuest.available === 1 ? 'vaga livre' : 'vagas livres'}
-                  </span>
-                </div>
+        <AdminModal
+          isOpen={!!tableToAddGuest}
+          onClose={() => setTableToAddGuest(null)}
+          title={tableToAddGuest ? `Adicionar à ${tableToAddGuest.name}` : 'Adicionar Convidado'}
+          meta={
+            tableToAddGuest
+              ? `Capacidade: ${tableToAddGuest.occupied}/${tableToAddGuest.capacity} lugares • ${tableToAddGuest.available} ${tableToAddGuest.available === 1 ? 'vaga livre' : 'vagas livres'}`
+              : undefined
+          }
+          size="md"
+        >
+          {tableToAddGuest && (
+            <div className="admin-modal-scrollable-content">
+              <div className="admin-modal-body">
+                {eligibleUnassignedGuests.length === 0 ? (
+                  <div className="admin-alert admin-alert--info" role="status">
+                    <span>Não há convidados elegíveis aguardando mesa.</span>
+                  </div>
+                ) : (
+                  <div className="admin-form-group">
+                    <label className="admin-label">
+                      Buscar ou selecionar convidado sem mesa:
+                    </label>
+                    <GuestSearchCombobox
+                      guests={eligibleUnassignedGuests}
+                      selectedGuestId={selectedUnassignedGuestId}
+                      onSelect={(guestId) => setSelectedUnassignedGuestId(guestId)}
+                      placeholder="Buscar convidado ou família..."
+                    />
+                    <span className="admin-input-hint">
+                      Apenas convidados confirmados ou pendentes sem mesa são elegíveis para seleção.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="admin-modal-footer">
                 <button
                   type="button"
-                  className="admin-modal-close"
+                  className="admin-btn admin-btn--outline"
                   onClick={() => setTableToAddGuest(null)}
-                  aria-label="Fechar modal"
                 >
-                  &times;
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--primary"
+                  onClick={handleConfirmAddGuestToTable}
+                  disabled={!selectedUnassignedGuestId || eligibleUnassignedGuests.length === 0}
+                >
+                  Adicionar à Mesa
                 </button>
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
-                <div className="admin-modal-body">
-                  {eligibleUnassignedGuests.length === 0 ? (
-                    <div className="admin-alert admin-alert--info" role="status">
-                      <span>Não há convidados elegíveis sem mesa para alocar no momento.</span>
-                    </div>
-                  ) : (
-                    <div className="admin-form-group">
-                      <label htmlFor="unassigned-guest-select" className="admin-label">
-                        Selecione um convidado sem mesa:
-                      </label>
-                      <select
-                        id="unassigned-guest-select"
-                        className="admin-select"
-                        value={selectedUnassignedGuestId}
-                        onChange={(e) => setSelectedUnassignedGuestId(e.target.value)}
-                      >
-                        {eligibleUnassignedGuests.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name} — {g.familyTitle} — {g.rsvpStatus === 'CONFIRMED' ? 'Confirmado' : 'Pendente'}{g.isChild ? ' • Criança' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="admin-input-hint">
-                        Apenas convidados confirmados ou pendentes sem mesa são elegíveis para seleção.
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="admin-modal-footer">
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--outline"
-                    onClick={() => setTableToAddGuest(null)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--primary"
-                    onClick={handleConfirmAddGuestToTable}
-                    disabled={!selectedUnassignedGuestId || eligibleUnassignedGuests.length === 0}
-                  >
-                    Adicionar à Mesa
-                  </button>
-                </div>
-              </div>
             </div>
-          </div>
-        )}
+          )}
+        </AdminModal>
       </main>
     </div>
   );
