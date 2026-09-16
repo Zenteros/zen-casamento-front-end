@@ -4181,11 +4181,11 @@ html, body {
 }
 
 .admin-header {
-  background-color: var(--color-white);
+  background-color: #ffffff;
   border-bottom: 1px solid rgba(200, 109, 81, 0.15);
   position: sticky;
   top: 0;
-  z-index: 40;
+  z-index: 50;
   box-shadow: 0 2px 10px rgba(45, 36, 34, 0.04);
 }
 
@@ -6107,6 +6107,7 @@ html, body {
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
   border-bottom: 1.5px solid rgba(107, 92, 87, 0.1);
+  white-space: nowrap;
 }
 
 .admin-table-row {
@@ -6121,6 +6122,40 @@ html, body {
 .admin-table td {
   padding: 0.85rem 1rem;
   vertical-align: middle;
+}
+
+.admin-col-family {
+  min-width: 160px;
+}
+
+.admin-col-guests {
+  min-width: 180px;
+}
+
+.admin-col-status {
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+.admin-col-table {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.admin-col-presence {
+  min-width: 140px;
+  white-space: nowrap;
+}
+
+.admin-col-link {
+  min-width: 220px;
+  white-space: nowrap;
+}
+
+.admin-col-actions {
+  min-width: 110px;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .admin-family-cell {
@@ -6153,6 +6188,7 @@ html, body {
   background-color: #f4efe9;
   color: var(--color-text-main);
   border: 1px solid rgba(107, 92, 87, 0.12);
+  white-space: nowrap;
 }
 
 .admin-guest-chip--confirmed {
@@ -6179,10 +6215,15 @@ html, body {
 
 /* Badges de Mesa e Check-in */
 .admin-table-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.78rem;
   font-weight: 600;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.65rem;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 .admin-table-badge--has {
@@ -6194,13 +6235,18 @@ html, body {
 .admin-table-badge--none {
   background-color: #f8f6f3;
   color: var(--color-text-light);
+  border: 1px solid rgba(107, 92, 87, 0.1);
 }
 
 .admin-checkin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.78rem;
   font-weight: 600;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.65rem;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
 .admin-checkin-badge--present {
@@ -6212,6 +6258,7 @@ html, body {
 .admin-checkin-badge--waiting {
   background-color: #f9fafb;
   color: var(--color-text-light);
+  border: 1px solid rgba(107, 92, 87, 0.1);
 }
 
 /* Botão Copiar Link */
@@ -6230,6 +6277,7 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
+  white-space: nowrap;
 }
 
 .admin-btn-copy:hover {
@@ -6248,6 +6296,7 @@ html, body {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  white-space: nowrap;
 }
 
 .admin-btn--outline-danger {
@@ -6307,15 +6356,147 @@ html, body {
   margin-top: 0.35rem;
 }
 
-/* ─── Modais de Convidados ─── */
+/* ─── Modais do Painel Administrativo ─── */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(22, 18, 17, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+  animation: adminModalFadeIn 0.2s ease;
+}
+
+@keyframes adminModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.admin-modal {
+  background-color: var(--color-white);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(107, 92, 87, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25), 0 0 1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  max-height: min(90vh, 800px);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  animation: adminModalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes adminModalSlideUp {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .admin-modal--guests {
-  max-width: 620px;
-  width: 95vw;
+  max-width: 680px;
 }
 
 .admin-modal--confirm {
   max-width: 480px;
-  width: 95vw;
+}
+
+.admin-modal--import {
+  max-width: 760px;
+}
+
+.admin-modal-header {
+  padding: 1.15rem 1.35rem;
+  border-bottom: 1px solid rgba(107, 92, 87, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background-color: #fdfcfb;
+  flex-shrink: 0;
+}
+
+.admin-modal-title {
+  font-size: 1.25rem;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.admin-modal-meta {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.2rem;
+  display: block;
+}
+
+.admin-modal-close {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(107, 92, 87, 0.15);
+  background-color: var(--color-sand);
+  color: var(--color-text-main);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.admin-modal-close:hover {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+  transform: scale(1.05);
+}
+
+.admin-modal-body {
+  padding: 1.25rem 1.35rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1;
+}
+
+.admin-modal-footer {
+  padding: 1rem 1.35rem;
+  border-top: 1px solid rgba(107, 92, 87, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background-color: #fdfcfb;
+  flex-shrink: 0;
+}
+
+@media (min-width: 600px) {
+  .admin-modal-footer {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .admin-dynamic-guests-list {
@@ -6386,17 +6567,24 @@ html, body {
   gap: 0.5rem;
 }
 
+.admin-detail-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .admin-detail-section--highlight {
-  background-color: #fbf9f6;
-  padding: 0.85rem 1rem;
+  background-color: #fcf8f5;
+  padding: 1rem;
   border-radius: var(--radius-sm);
-  border: 1px dashed rgba(200, 109, 81, 0.3);
+  border: 1px solid rgba(200, 109, 81, 0.25);
 }
 
 .admin-detail-header-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .admin-detail-label {
@@ -6421,7 +6609,7 @@ html, body {
   justify-content: space-between;
   gap: 0.65rem;
   background-color: var(--color-white);
-  padding: 0.4rem 0.65rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(107, 92, 87, 0.15);
 }
@@ -6449,24 +6637,33 @@ html, body {
 .admin-guests-detail-list {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
 }
 
 .admin-guest-detail-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.6rem 0.8rem;
-  background-color: #faf8f5;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background-color: #faf7f4;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(107, 92, 87, 0.08);
+  transition: background-color 0.15s ease;
+}
+
+.admin-guest-detail-row:hover {
+  background-color: #f5efe9;
 }
 
 .admin-guest-info {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.25rem;
+  flex: 1;
 }
 
 .admin-guest-name {
@@ -6526,10 +6723,10 @@ html, body {
   background-color: #fbf9f6;
   border: 1px dashed rgba(107, 92, 87, 0.2);
   border-radius: var(--radius-sm);
-  padding: 0.75rem 0.85rem;
+  padding: 0.85rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
@@ -6556,12 +6753,13 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .admin-inline-edit-guest {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
   width: 100%;
 }
 

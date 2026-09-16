@@ -434,6 +434,26 @@ export const AdminGuestsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchInvites, checkingAuth]);
 
+  // Fechar modais com tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (regenerateInviteTarget) {
+          setRegenerateInviteTarget(null);
+        } else if (detailInviteId) {
+          setDetailInviteId(null);
+          setDetailData(null);
+        } else if (isCreateModalOpen) {
+          setIsCreateModalOpen(false);
+        } else if (isImportModalOpen) {
+          handleCloseImportModal();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [regenerateInviteTarget, detailInviteId, isCreateModalOpen, isImportModalOpen]);
+
   // 3. Logout
   const handleLogout = async () => {
     try {
@@ -988,20 +1008,20 @@ export const AdminGuestsPage: React.FC = () => {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Família / Convite</th>
-                    <th>Integrantes ({displayedItems.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
-                    <th>RSVP Consolidado</th>
-                    <th>Mesa</th>
-                    <th>Presença</th>
-                    <th>Link Privado</th>
-                    <th style={{ textAlign: 'right' }}>Ações</th>
+                    <th className="admin-col-family">Família / Convite</th>
+                    <th className="admin-col-guests">Integrantes ({displayedItems.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
+                    <th className="admin-col-status">RSVP Consolidado</th>
+                    <th className="admin-col-table">Mesa</th>
+                    <th className="admin-col-presence">Presença</th>
+                    <th className="admin-col-link">Link Privado</th>
+                    <th className="admin-col-actions" style={{ textAlign: 'right' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {displayedItems.map((invite) => (
                     <tr key={invite.id} className="admin-table-row">
                       {/* Família */}
-                      <td>
+                      <td className="admin-col-family">
                         <div className="admin-family-cell">
                           <strong className="admin-family-cell__title">{invite.familyTitle}</strong>
                           {invite.isDev && (
@@ -1013,7 +1033,7 @@ export const AdminGuestsPage: React.FC = () => {
                       </td>
 
                       {/* Integrantes */}
-                      <td>
+                      <td className="admin-col-guests">
                         <div className="admin-guests-chips">
                           {invite.guests.map((guest) => (
                             <span
@@ -1029,20 +1049,20 @@ export const AdminGuestsPage: React.FC = () => {
                       </td>
 
                       {/* RSVP Consolidado */}
-                      <td>{renderStatusBadge(invite.consolidatedStatus)}</td>
+                      <td className="admin-col-status">{renderStatusBadge(invite.consolidatedStatus)}</td>
 
                       {/* Mesa */}
-                      <td>
+                      <td className="admin-col-table">
                         <span className={`admin-table-badge ${invite.hasTable ? 'admin-table-badge--has' : 'admin-table-badge--none'}`}>
                           {invite.tableSummary}
                         </span>
                       </td>
 
                       {/* Presença */}
-                      <td>{renderPresenceBadge(invite)}</td>
+                      <td className="admin-col-presence">{renderPresenceBadge(invite)}</td>
 
                       {/* Link Privado & WhatsApp */}
-                      <td>
+                      <td className="admin-col-link">
                         <div className="admin-link-cell" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                           <button
                             type="button"
@@ -1067,7 +1087,7 @@ export const AdminGuestsPage: React.FC = () => {
                       </td>
 
                       {/* Ações */}
-                      <td style={{ textAlign: 'right' }}>
+                      <td className="admin-col-actions" style={{ textAlign: 'right' }}>
                         <div className="admin-row-actions">
                           <button
                             type="button"
@@ -1191,7 +1211,14 @@ export const AdminGuestsPage: React.FC = () => {
           5. MODAL: NOVO CONVITE (CRIAÇÃO DE FAMÍLIA)
           ══════════════════════════════════════════════════════ */}
       {isCreateModalOpen && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsCreateModalOpen(false);
+          }}
+        >
           <div className="admin-modal admin-modal--guests">
             <div className="admin-modal-header">
               <div>
@@ -1308,7 +1335,17 @@ export const AdminGuestsPage: React.FC = () => {
           6. MODAL: DETALHES E EDIÇÃO DO CONVITE
           ══════════════════════════════════════════════════════ */}
       {detailInviteId && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setDetailInviteId(null);
+              setDetailData(null);
+            }
+          }}
+        >
           <div className="admin-modal admin-modal--guests">
             <div className="admin-modal-header">
               <div>
@@ -1584,7 +1621,14 @@ export const AdminGuestsPage: React.FC = () => {
           7. MODAL: CONFIRMAÇÃO DE REGENERAÇÃO DE LINK
           ══════════════════════════════════════════════════════ */}
       {regenerateInviteTarget && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setRegenerateInviteTarget(null);
+          }}
+        >
           <div className="admin-modal admin-modal--confirm">
             <div className="admin-modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1641,7 +1685,14 @@ export const AdminGuestsPage: React.FC = () => {
           8. MODAL: IMPORTAÇÃO DE CONVIDADOS (CSV)
           ══════════════════════════════════════════════════════ */}
       {isImportModalOpen && (
-        <div className="admin-modal-overlay" role="dialog" aria-modal="true">
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCloseImportModal();
+          }}
+        >
           <div className="admin-modal admin-modal--import">
             <div className="admin-modal-header">
               <div>
