@@ -37,7 +37,36 @@ const FloralMotif: React.FC = () => (
   </svg>
 );
 
-export const EventSection: React.FC = () => {
+/* ──────────────────────────────────────────────
+   Camera / Photo thumbnail placeholder icon
+   ────────────────────────────────────────────── */
+const PhotoPlaceholderIcon: React.FC = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </svg>
+);
+
+interface EventSectionProps {
+  ceremonyPhotoSrc?: string;
+  receptionPhotoSrc?: string;
+}
+
+export const EventSection: React.FC<EventSectionProps> = ({
+  ceremonyPhotoSrc = '/images/santuario-caravaggio.webp',
+  receptionPhotoSrc = '/images/la-brace.webp',
+}) => {
   const ceremonyGmaps = 'https://www.google.com/maps/search/?api=1&query=Santuario+Diocesano+Nossa+Senhora+de+Caravaggio+Nova+Veneza+SC';
   const ceremonyWaze  = 'https://waze.com/ul?q=Santuario%20Diocesano%20Nossa%20Senhora%20de%20Caravaggio%20Nova%20Veneza&navigate=yes';
 
@@ -49,7 +78,7 @@ export const EventSection: React.FC = () => {
       {/* ═══════════════════════════════════
           CERIMÔNIA — editorial, two-column on desktop
           left: time/date + narrative
-          right: church name + address + nav
+          right: church name + thumbnail + address + nav
           ═══════════════════════════════════ */}
       <section
         className="editorial-section ceremony-section animate-fade-in"
@@ -75,11 +104,31 @@ export const EventSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Right column — address + nav buttons */}
+          {/* Right column — address + photo thumbnail + nav buttons */}
           <div>
-            <h2 id="ceremony-heading" className="editorial-title" style={{ marginBottom: '1.5rem' }}>
+            <h2 id="ceremony-heading" className="editorial-title" style={{ marginBottom: '1.25rem' }}>
               Santuário Diocesano Nossa Senhora de Caravaggio
             </h2>
+
+            {/* Miniatura fotográfica / Placeholder identificado do Santuário */}
+            <div className="venue-thumbnail-wrap">
+              {ceremonyPhotoSrc ? (
+                <img
+                  src={ceremonyPhotoSrc}
+                  alt="Santuário Diocesano Nossa Senhora de Caravaggio"
+                  className="venue-thumbnail__img"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="venue-thumbnail__placeholder" aria-label="Espaço reservado para fotografia do Santuário">
+                  <span className="venue-thumbnail__icon">
+                    <PhotoPlaceholderIcon />
+                  </span>
+                  <span className="venue-thumbnail__title">Santuário de Caravaggio</span>
+                  <span className="venue-thumbnail__sub">Fotografia do local</span>
+                </div>
+              )}
+            </div>
 
             <div className="ceremony-address" style={{ marginBottom: '2rem' }}>
               <span className="ceremony-address__name">Santuário de Caravaggio</span>
@@ -122,8 +171,8 @@ export const EventSection: React.FC = () => {
 
       {/* ═══════════════════════════════════
           RECEPÇÃO — alternate composition
-          Large decorative ornament number
-          reversed column order on desktop
+          left: title + script phrase
+          right: thumbnail + address + nav
           ═══════════════════════════════════ */}
       <section
         className="editorial-section reception-section animate-fade-in"
@@ -134,7 +183,7 @@ export const EventSection: React.FC = () => {
 
           {/* Eyebrow + title */}
           <div>
-            <span className="editorial-eyebrow">Recepção & Celebração</span>
+            <span className="editorial-eyebrow">Recepção &amp; Celebração</span>
             <h2
               id="reception-heading"
               className="editorial-title"
@@ -150,8 +199,28 @@ export const EventSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Address + navigation */}
+          {/* Address + photo thumbnail + navigation */}
           <div>
+            {/* Miniatura fotográfica / Placeholder identificado do La Brace */}
+            <div className="venue-thumbnail-wrap">
+              {receptionPhotoSrc ? (
+                <img
+                  src={receptionPhotoSrc}
+                  alt="Casa de Eventos La Brace"
+                  className="venue-thumbnail__img venue-thumbnail__img--reception"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="venue-thumbnail__placeholder" aria-label="Espaço reservado para fotografia da Casa de Eventos La Brace">
+                  <span className="venue-thumbnail__icon">
+                    <PhotoPlaceholderIcon />
+                  </span>
+                  <span className="venue-thumbnail__title">Casa de Eventos La Brace</span>
+                  <span className="venue-thumbnail__sub">Fotografia do local</span>
+                </div>
+              )}
+            </div>
+
             <div className="ceremony-address" style={{ marginBottom: '2rem' }}>
               <span className="ceremony-address__name">Casa de Eventos La Brace</span>
               <span className="ceremony-address__line">R. Frederico Marazzi, 200</span>

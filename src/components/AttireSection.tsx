@@ -29,32 +29,18 @@ export const AttireSection: React.FC = () => {
         id="traje"
         aria-labelledby="attire-heading"
       >
-        <span className="editorial-eyebrow">Traje</span>
+        <div className="attire-inner">
+          <span className="editorial-eyebrow">Traje</span>
 
-        <h2 id="attire-heading" className="editorial-title" style={{ marginBottom: '0.5rem' }}>
-          Passeio Completo
-        </h2>
+          <h2 id="attire-heading" className="editorial-title" style={{ marginBottom: '0.35rem' }}>
+            Passeio Completo
+          </h2>
 
-        <p className="attire-code">Social Elegante</p>
+          <p className="attire-code">Social Elegante</p>
 
-        <div className="attire-grid">
-
-          <div className="attire-item">
-            <span className="attire-item__gender">Para Elas</span>
-            <p className="attire-item__description">
-              Vestidos de comprimento midi ou longo, macacões sociais sofisticados
-              ou tecidos leves e fluídos, ideais para uma celebração matutina refinada.
-            </p>
-          </div>
-
-          <div className="attire-item">
-            <span className="attire-item__gender">Para Eles</span>
-            <p className="attire-item__description">
-              Costume ou terno em tons elegantes, acompanhados de camisa social e sapato.
-              A gravata é opcional.
-            </p>
-          </div>
-
+          <p className="attire-note">
+            Elegância para celebrar este dia conosco.
+          </p>
         </div>
       </section>
     </>

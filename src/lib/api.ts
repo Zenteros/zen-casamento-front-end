@@ -13,6 +13,24 @@ export const API_URL: string =
     : (import.meta.env.DEV ? 'http://localhost:3000' : '');
 
 /**
+ * URL pública oficial da aplicação (convite digital).
+ * Utilizada para geração de links compartilháveis (WhatsApp, Copiar Link).
+ */
+const envPublicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL;
+
+export const PUBLIC_APP_URL: string =
+  typeof envPublicAppUrl === 'string' && envPublicAppUrl.trim() !== ''
+    ? envPublicAppUrl.trim().replace(/\/+$/, '')
+    : 'https://patricioeevandria.com.br';
+
+/**
+ * Constrói o link público canônico do convite a partir do token.
+ */
+export function buildInviteUrl(token: string): string {
+  return `${PUBLIC_APP_URL}/c/${token}`;
+}
+
+/**
  * Constrói uma URL completa para o endpoint da API a partir de um caminho relativo.
  */
 export function buildApiUrl(path: string): string {

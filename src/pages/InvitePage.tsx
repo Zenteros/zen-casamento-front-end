@@ -42,6 +42,22 @@ const PageFooter: React.FC = () => (
   </footer>
 );
 
+const CheckIcon: React.FC = () => (
+  <svg
+    width="15"
+    height="15"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
 /* ──────────────────────────────────────────────────────────
    InvitePage
    ────────────────────────────────────────────────────────── */
@@ -252,6 +268,23 @@ export const InvitePage: React.FC = () => {
     return <EventDayPage invite={invite} eventState={eventState} />;
   }
 
+  // Determina se o RSVP do convite foi efetivamente concluído (todos os convidados com status final CONFIRMED ou DECLINED)
+  const isRsvpCompleted = Boolean(
+    invite &&
+    invite.guests &&
+    invite.guests.length > 0 &&
+    invite.guests.every((g) => g.rsvp && (g.rsvp.status === 'CONFIRMED' || g.rsvp.status === 'DECLINED'))
+  );
+
+  const hasAnyConfirmed = Boolean(
+    invite &&
+    invite.guests &&
+    invite.guests.some((g) => {
+      const status = g.rsvp?.status || rsvps[g.id]?.status;
+      return status === 'CONFIRMED';
+    })
+  );
+
   /* ── Main render (PRE_EVENT) ── */
   return (
     <>
@@ -293,8 +326,7 @@ export const InvitePage: React.FC = () => {
         <SectionSeparator />
 
         {/* ═══════════════════════════════════
-            7. RSVP — editorial skin
-            lógica intacta, visual refinado
+            7. RSVP — Confirmação de Presença
             ═══════════════════════════════════ */}
         <section
           className="editorial-section rsvp-section animate-fade-in"
@@ -304,105 +336,224 @@ export const InvitePage: React.FC = () => {
           <div className="rsvp-inner">
             <span className="editorial-eyebrow">Confirmação de Presença</span>
 
-            <h2
-              id="rsvp-heading"
-              className="editorial-title"
-              style={{ marginBottom: '0.75rem' }}
-            >
-              Você virá?
-            </h2>
-
-            <p
-              className="editorial-subtitle"
-              style={{ marginBottom: '2.5rem' }}
-            >
-              Confirme a presença de cada integrante do seu grupo.
-            </p>
-
-            {/* Success message */}
-            {successMessage && (
-              <div className="rsvp-success" role="status" aria-live="polite">
-                {successMessage}
-              </div>
-            )}
-
-            {/* Error message */}
-            {error && (
-              <div className="rsvp-error" role="alert" aria-live="polite">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="rsvp-form" noValidate>
-              {invite.guests.map((guest) => {
-                const guestRsvp = rsvps[guest.id] || { status: 'CONFIRMED', dietaryRestrictions: '' };
-                return (
-                  <div key={guest.id} className="rsvp-guest">
-                    <div className="rsvp-guest__header">
-                      <span className="rsvp-guest__name">{guest.name}</span>
-                      {guest.isChild && (
-                        <span className="rsvp-guest__child-badge">Criança</span>
-                      )}
-                    </div>
-
-                    {/* Attendance choice */}
-                    <div className="rsvp-choices">
-                      <label className="rsvp-choice">
-                        <input
-                          type="radio"
-                          name={`status-${guest.id}`}
-                          value="CONFIRMED"
-                          checked={guestRsvp.status === 'CONFIRMED'}
-                          onChange={() => handleStatusChange(guest.id, 'CONFIRMED')}
-                        />
-                        <span>Sim, estarei lá</span>
-                      </label>
-
-                      <label className="rsvp-choice">
-                        <input
-                          type="radio"
-                          name={`status-${guest.id}`}
-                          value="DECLINED"
-                          checked={guestRsvp.status === 'DECLINED'}
-                          onChange={() => handleStatusChange(guest.id, 'DECLINED')}
-                        />
-                        <span>Não poderei ir</span>
-                      </label>
-                    </div>
-
-                    {/* Dietary restrictions */}
-                    {guestRsvp.status === 'CONFIRMED' && (
-                      <div className="rsvp-dietary-wrap animate-fade-in">
-                        <label
-                          htmlFor={`dietary-${guest.id}`}
-                          className="rsvp-dietary-label"
-                        >
-                          Restrições alimentares (opcional)
-                        </label>
-                        <input
-                          id={`dietary-${guest.id}`}
-                          type="text"
-                          placeholder="Ex: vegetariano, alergia a glúten..."
-                          value={guestRsvp.dietaryRestrictions}
-                          onChange={(e) => handleDietaryChange(guest.id, e.target.value)}
-                          className="rsvp-dietary-input"
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div className="rsvp-submit-wrap">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rsvp-submit-btn"
+            {isRsvpCompleted ? (
+              /* ── Estado Somente Leitura (Confirmado / Salvo) ── */
+              <div className="rsvp-confirmed-box animate-fade-in">
+                <h2
+                  id="rsvp-heading"
+                  className="editorial-title"
+                  style={{ marginBottom: '0.75rem' }}
                 >
-                  {saving ? 'Salvando...' : 'Confirmar Presença'}
-                </button>
+                  {hasAnyConfirmed ? '✓ Presença confirmada' : 'Confirmação registrada'}
+                </h2>
+
+                <p
+                  className="editorial-subtitle"
+                  style={{ marginBottom: '1.5rem' }}
+                >
+                  {hasAnyConfirmed
+                    ? 'Obrigado por confirmar. Esperamos você para celebrar conosco!'
+                    : 'Agradecemos por nos avisar. Sentiremos sua falta!'}
+                </p>
+
+                {error && (
+                  <div className="rsvp-error" role="alert" aria-live="polite">
+                    {error}
+                  </div>
+                )}
+
+                {/* Discreet deadline notice */}
+                <div className="rsvp-deadline-notice">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="rsvp-deadline-notice__icon"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <p className="rsvp-deadline-notice__text">
+                    Prazo para confirmação:{' '}
+                    <strong className="rsvp-deadline-notice__date">10 de outubro de 2026</strong>
+                  </p>
+                </div>
+
+                <div className="rsvp-confirmed-list">
+                  {invite.guests.map((guest) => {
+                    const guestStatus = guest.rsvp?.status || rsvps[guest.id]?.status || 'CONFIRMED';
+                    const isConfirmed = guestStatus === 'CONFIRMED';
+                    const dietary = guest.rsvp?.dietaryRestrictions || rsvps[guest.id]?.dietaryRestrictions;
+
+                    return (
+                      <div key={guest.id} className="rsvp-confirmed-guest">
+                        <div className="rsvp-confirmed-guest__header">
+                          <span className="rsvp-confirmed-guest__name">{guest.name}</span>
+                          {guest.isChild && (
+                            <span className="rsvp-guest__child-badge">Criança</span>
+                          )}
+                        </div>
+
+                        <div className="rsvp-confirmed-guest__status-row">
+                          {isConfirmed ? (
+                            <div className="rsvp-confirmed-pill rsvp-confirmed-pill--yes">
+                              <CheckIcon />
+                              <span>Presença confirmada</span>
+                            </div>
+                          ) : (
+                            <div className="rsvp-confirmed-pill rsvp-confirmed-pill--no">
+                              <span>Não poderá comparecer</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {isConfirmed && dietary && dietary.trim() ? (
+                          <div className="rsvp-confirmed-dietary">
+                            <span className="rsvp-confirmed-dietary__label">Restrição alimentar informada:</span>
+                            <span className="rsvp-confirmed-dietary__text">{dietary.trim()}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rsvp-confirmed-footer">
+                  <p className="rsvp-confirmed-footer__text">
+                    Precisa alterar sua confirmação? Entre em contato conosco.
+                  </p>
+                </div>
               </div>
-            </form>
+            ) : (
+              /* ── Formulário Editável (Pendente) ── */
+              <div className="rsvp-editable-box">
+                <h2
+                  id="rsvp-heading"
+                  className="editorial-title"
+                  style={{ marginBottom: '0.75rem' }}
+                >
+                  Confirme sua presença
+                </h2>
+
+                <p
+                  className="editorial-subtitle"
+                  style={{ marginBottom: '1.5rem' }}
+                >
+                  Será uma alegria celebrar este momento com você.
+                </p>
+
+                {/* Error message */}
+                {error && (
+                  <div className="rsvp-error" role="alert" aria-live="polite">
+                    {error}
+                  </div>
+                )}
+
+                {/* Discreet deadline notice */}
+                <div className="rsvp-deadline-notice">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="rsvp-deadline-notice__icon"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <p className="rsvp-deadline-notice__text">
+                    Por gentileza, confirme sua presença até{' '}
+                    <strong className="rsvp-deadline-notice__date">10 de outubro de 2026</strong>.
+                  </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="rsvp-form" noValidate>
+                  {invite.guests.map((guest) => {
+                    const guestRsvp = rsvps[guest.id] || { status: 'CONFIRMED', dietaryRestrictions: '' };
+                    return (
+                      <div key={guest.id} className="rsvp-guest">
+                        <div className="rsvp-guest__header">
+                          <span className="rsvp-guest__name">{guest.name}</span>
+                          {guest.isChild && (
+                            <span className="rsvp-guest__child-badge">Criança</span>
+                          )}
+                        </div>
+
+                        {/* Attendance choice */}
+                        <div className="rsvp-choices">
+                          <label className="rsvp-choice">
+                            <input
+                              type="radio"
+                              name={`status-${guest.id}`}
+                              value="CONFIRMED"
+                              checked={guestRsvp.status === 'CONFIRMED'}
+                              onChange={() => handleStatusChange(guest.id, 'CONFIRMED')}
+                            />
+                            <span>Sim, estarei lá</span>
+                          </label>
+
+                          <label className="rsvp-choice">
+                            <input
+                              type="radio"
+                              name={`status-${guest.id}`}
+                              value="DECLINED"
+                              checked={guestRsvp.status === 'DECLINED'}
+                              onChange={() => handleStatusChange(guest.id, 'DECLINED')}
+                            />
+                            <span>Não poderei ir</span>
+                          </label>
+                        </div>
+
+                        {/* Dietary restrictions */}
+                        {guestRsvp.status === 'CONFIRMED' && (
+                          <div className="rsvp-dietary-wrap animate-fade-in">
+                            <label
+                              htmlFor={`dietary-${guest.id}`}
+                              className="rsvp-dietary-label"
+                            >
+                              Restrições alimentares (opcional)
+                            </label>
+                            <input
+                              id={`dietary-${guest.id}`}
+                              type="text"
+                              placeholder="Ex: vegetariano, alergia a glúten..."
+                              value={guestRsvp.dietaryRestrictions}
+                              onChange={(e) => handleDietaryChange(guest.id, e.target.value)}
+                              className="rsvp-dietary-input"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <div className="rsvp-submit-wrap">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rsvp-submit-btn"
+                    >
+                      {saving ? 'Salvando...' : 'Confirmar Presença'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </section>
 

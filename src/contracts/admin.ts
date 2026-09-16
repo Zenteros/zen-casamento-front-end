@@ -157,23 +157,36 @@ export interface AdminOverviewDTO {
   updatedAt: string;
 }
 
-export type ConsolidatedRsvpStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';
+export type ConsolidatedRsvpStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'PARTIAL';
 
 export function calculateConsolidatedInviteStatus(
-  guests: Array<{ rsvp?: { status: string } | null }>
+  guests: Array<{ rsvp?: { status: string } | null; rsvpStatus?: string }>
 ): ConsolidatedRsvpStatus {
   if (!guests || guests.length === 0) {
     return 'PENDING';
   }
-  const hasPending = guests.some((g) => !g.rsvp || g.rsvp.status === 'PENDING');
+  const statuses = guests.map((g) => {
+    if (g.rsvpStatus) return g.rsvpStatus;
+    if (g.rsvp && g.rsvp.status) return g.rsvp.status;
+    return 'PENDING';
+  });
+
+  const hasPending = statuses.some((s) => s === 'PENDING');
   if (hasPending) {
     return 'PENDING';
   }
-  const allDeclined = guests.every((g) => g.rsvp?.status === 'DECLINED');
+
+  const allConfirmed = statuses.every((s) => s === 'CONFIRMED');
+  if (allConfirmed) {
+    return 'CONFIRMED';
+  }
+
+  const allDeclined = statuses.every((s) => s === 'DECLINED');
   if (allDeclined) {
     return 'DECLINED';
   }
-  return 'CONFIRMED';
+
+  return 'PARTIAL';
 }
 
 export interface AdminCreateGuestInputDTO {
@@ -198,6 +211,7 @@ export interface AdminCreateGuestDTO {
 export interface AdminUpdateGuestDTO {
   name?: string;
   isChild?: boolean;
+  rsvpStatus?: 'PENDING' | 'CONFIRMED' | 'DECLINED';
 }
 
 export interface AdminGuestItemDTO {

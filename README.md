@@ -36,6 +36,7 @@ cp .env.example .env
 | Variável | Descrição | Padrão (Dev) | Padrão (Prod) |
 | :--- | :--- | :--- | :--- |
 | `VITE_API_URL` | URL base do backend Fastify | `http://localhost:3000` | `""` (Same-Origin) |
+| `VITE_PUBLIC_APP_URL` | URL pública oficial do casamento para links de convite e WhatsApp | `https://patricioeevandria.com.br` | `https://patricioeevandria.com.br` |
 
 > **Nota:** Em produção com reverse proxy (como Nginx / Caddy / Cloudflare), `VITE_API_URL` pode ser deixado vazio para que as requisições utilizem a mesma origem (same-origin), preservando os cookies de sessão com segurança.
 

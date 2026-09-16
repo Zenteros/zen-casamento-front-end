@@ -11,8 +11,9 @@ import type {
   AdminImportPreviewResponseDTO,
   AdminImportConfirmResponseDTO,
 } from '../contracts/index.js';
+import { calculateConsolidatedInviteStatus } from '../contracts/index.js';
 import { Monogram } from '../components/Monogram.js';
-import { apiFetch } from '../lib/api.js';
+import { apiFetch, buildInviteUrl } from '../lib/api.js';
 
 const POLLING_INTERVAL_MS = 25000; // 25 segundos
 
@@ -136,7 +137,7 @@ export const AdminGuestsPage: React.FC = () => {
 
   // Filtros e controles
   const [search, setSearch] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'DECLINED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | ConsolidatedRsvpStatus>('ALL');
   const [tableFilter, setTableFilter] = useState<'ALL' | 'WITH_TABLE' | 'WITHOUT_TABLE'>('ALL');
   const [checkInFilter, setCheckInFilter] = useState<'ALL' | 'CHECKED_IN' | 'NOT_CHECKED_IN'>('ALL');
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -185,6 +186,7 @@ export const AdminGuestsPage: React.FC = () => {
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
   const [editGuestName, setEditGuestName] = useState('');
   const [editGuestIsChild, setEditGuestIsChild] = useState(false);
+  const [editGuestRsvpStatus, setEditGuestRsvpStatus] = useState<'PENDING' | 'CONFIRMED' | 'DECLINED'>('PENDING');
   const [isSavingGuest, setIsSavingGuest] = useState(false);
 
   // Edição de Título de Família
@@ -201,16 +203,21 @@ export const AdminGuestsPage: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. Copiar Mensagem para WhatsApp
+  // 1. WhatsApp: Copiar Mensagem e Abrir no WhatsApp
   const handleCopyWhatsApp = (familyTitle: string, token: string, inviteId: string) => {
-    const link = `${window.location.origin}/c/${token}`;
+    const link = buildInviteUrl(token);
     const message = `Olá, ${familyTitle}! 💍\n\nEstamos muito felizes em compartilhar este momento tão especial com vocês.\nPreparamos nosso convite digital com todas as informações e detalhes do casamento de Patrício & Evandria.\n\nAcesse pelo link exclusivo abaixo:\n${link}\n\nPor lá vocês também poderão confirmar a presença de cada um de vocês.\n\nEsperamos vocês com muito carinho! ❤️`;
 
-    navigator.clipboard.writeText(message).then(() => {
-      setCopiedWhatsAppId(inviteId);
-      showToast(`Mensagem para WhatsApp copiada com sucesso! 💬`);
-      setTimeout(() => setCopiedWhatsAppId(null), 2500);
-    });
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(message).catch(() => {});
+    }
+
+    setCopiedWhatsAppId(inviteId);
+    showToast(`Mensagem para WhatsApp copiada com sucesso! 💬`);
+    setTimeout(() => setCopiedWhatsAppId(null), 2500);
+
+    const whatsappUrl = `https://api.whatsapp.com/send/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   };
 
   // 2. Baixar Modelo CSV
@@ -385,7 +392,11 @@ export const AdminGuestsPage: React.FC = () => {
         }
 
         const data = await res.json();
-        setItems(data.items);
+        const itemsWithCalculatedStatus = (data.items || []).map((item: AdminInviteItemDTO) => ({
+          ...item,
+          consolidatedStatus: calculateConsolidatedInviteStatus(item.guests || []),
+        }));
+        setItems(itemsWithCalculatedStatus);
         setCounts(data.counts);
         setPagination(data.pagination);
         setErrorMessage(null);
@@ -438,7 +449,7 @@ export const AdminGuestsPage: React.FC = () => {
 
   // 4. Copiar Link do Convite
   const handleCopyLink = (token: string, inviteId: string) => {
-    const fullUrl = `${window.location.origin}/c/${token}`;
+    const fullUrl = buildInviteUrl(token);
     navigator.clipboard.writeText(fullUrl).then(() => {
       setCopiedTokenId(inviteId);
       showToast('Link do convite copiado com sucesso! 📋');
@@ -458,7 +469,10 @@ export const AdminGuestsPage: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setDetailData(data);
+        setDetailData({
+          ...data,
+          consolidatedStatus: calculateConsolidatedInviteStatus(data.guests || []),
+        });
         setEditFamilyTitle(data.familyTitle);
       }
     } catch {
@@ -524,7 +538,10 @@ export const AdminGuestsPage: React.FC = () => {
       });
       if (res.ok) {
         const updated = await res.json();
-        setDetailData(updated);
+        setDetailData({
+          ...updated,
+          consolidatedStatus: calculateConsolidatedInviteStatus(updated.guests || []),
+        });
         setIsEditingFamilyTitle(false);
         showToast('Título da família atualizado! ✨');
         fetchInvites(true);
@@ -575,6 +592,7 @@ export const AdminGuestsPage: React.FC = () => {
         body: JSON.stringify({
           name: editGuestName.trim(),
           isChild: editGuestIsChild,
+          rsvpStatus: editGuestRsvpStatus,
         }),
       });
       if (res.ok) {
@@ -603,7 +621,10 @@ export const AdminGuestsPage: React.FC = () => {
         showToast(`Novo link gerado com sucesso! O anterior foi invalidado. 🔐`);
         setRegenerateInviteTarget(null);
         if (detailData && detailData.id === updated.id) {
-          setDetailData(updated);
+          setDetailData({
+            ...updated,
+            consolidatedStatus: calculateConsolidatedInviteStatus(updated.guests || []),
+          });
         }
         fetchInvites(false);
       }
@@ -633,6 +654,9 @@ export const AdminGuestsPage: React.FC = () => {
     if (status === 'DECLINED') {
       return <span className="admin-status-pill admin-status-pill--declined">Recusado</span>;
     }
+    if (status === 'PARTIAL') {
+      return <span className="admin-status-pill admin-status-pill--partial">Parcial</span>;
+    }
     return <span className="admin-status-pill admin-status-pill--pending">Pendente</span>;
   };
 
@@ -645,6 +669,23 @@ export const AdminGuestsPage: React.FC = () => {
     }
     return <span className="admin-guest-tag admin-guest-tag--pending">Pendente</span>;
   };
+
+  const renderPresenceBadge = (invite: AdminInviteItemDTO) => {
+    if (invite.consolidatedStatus === 'CONFIRMED' || invite.consolidatedStatus === 'PARTIAL') {
+      if (invite.checkedInCount > 0) {
+        return <span className="admin-checkin-badge admin-checkin-badge--present">Presente</span>;
+      }
+      return <span className="admin-checkin-badge admin-checkin-badge--waiting">Aguardando chegada</span>;
+    }
+    if (invite.consolidatedStatus === 'DECLINED') {
+      return <span className="admin-checkin-badge admin-checkin-badge--waiting">Não comparecerá</span>;
+    }
+    return <span className="admin-checkin-badge admin-checkin-badge--waiting">—</span>;
+  };
+
+  const displayedItems = statusFilter === 'ALL'
+    ? items
+    : items.filter((invite) => invite.consolidatedStatus === statusFilter);
 
   if (checkingAuth) {
     return (
@@ -680,55 +721,49 @@ export const AdminGuestsPage: React.FC = () => {
             </div>
           </div>
 
+          {/* User Info & Actions */}
           <div className="admin-header__actions">
-            <span className="admin-header__last-update" title="Última sincronização de dados">
-              Atualizado às {formatTimeOnly(lastUpdatedAt)}
-            </span>
-
-            <button
-              type="button"
-              className="admin-btn admin-btn--icon-only"
-              onClick={() => fetchInvites(false)}
-              disabled={isRefreshing}
-              title="Atualizar lista agora"
-              aria-label="Atualizar lista"
-            >
-              <RefreshIcon spinning={isRefreshing} />
-            </button>
-
             {adminUser && (
-              <div className="admin-user-pill">
-                <span className="admin-user-pill__name">{adminUser.name}</span>
-              </div>
+              <span className="admin-header__user" title={`Logado como ${adminUser.email}`}>
+                👤 {adminUser.name}
+              </span>
             )}
 
             <button
               type="button"
-              className="admin-btn admin-btn--logout"
+              className="admin-btn admin-btn--icon admin-header__refresh"
+              onClick={() => fetchInvites(false)}
+              disabled={isRefreshing}
+              title="Atualizar lista agora"
+            >
+              <RefreshIcon spinning={isRefreshing} />
+            </button>
+
+            <button
+              type="button"
+              className="admin-btn admin-btn--icon admin-header__logout"
               onClick={handleLogout}
-              title="Sair do painel"
-              aria-label="Encerrar sessão"
+              title="Sair do painel administrativo"
             >
               <LogoutIcon />
-              <span className="admin-btn__label-desktop">Sair</span>
             </button>
           </div>
         </div>
 
-        {/* ── Sub-navegação em Abas ── */}
+        {/* ── Submenu de Navegação Administrativa ── */}
         <div className="admin-subnav">
           <div className="admin-subnav__container">
-            <Link to="/admin" className="admin-subnav__tab">
-              🏛️ Visão Geral
+            <Link to="/admin/overview" className="admin-subnav__tab">
+              📊 Visão Geral
             </Link>
             <Link to="/admin/guests" className="admin-subnav__tab admin-subnav__tab--active">
               👥 Convidados &amp; Convites
             </Link>
             <Link to="/admin/tables" className="admin-subnav__tab">
-              🍽️ Mesas &amp; Alocação
+              🪑 Mapa de Mesas
             </Link>
             <Link to="/admin/media" className="admin-subnav__tab">
-              📷 Moderação de Fotos &amp; Vídeos
+              📸 Mural de Fotos
             </Link>
             <Link to="/admin/content" className="admin-subnav__tab">
               📋 Conteúdo do Evento
@@ -850,6 +885,16 @@ export const AdminGuestsPage: React.FC = () => {
               </button>
               <button
                 type="button"
+                className={`admin-filter-pill ${statusFilter === 'PARTIAL' ? 'admin-filter-pill--active' : ''}`}
+                onClick={() => {
+                  setStatusFilter('PARTIAL');
+                  setCurrentPage(1);
+                }}
+              >
+                Parciais
+              </button>
+              <button
+                type="button"
                 className={`admin-filter-pill ${statusFilter === 'DECLINED' ? 'admin-filter-pill--active' : ''}`}
                 onClick={() => {
                   setStatusFilter('DECLINED');
@@ -921,12 +966,12 @@ export const AdminGuestsPage: React.FC = () => {
         {/* ══════════════════════════════════════════════════════
             4. LISTAGEM DE CONVITES
             ══════════════════════════════════════════════════════ */}
-        {loading && items.length === 0 ? (
+        {loading && displayedItems.length === 0 ? (
           <div className="admin-empty-state">
             <span className="admin-spinner" aria-hidden="true" />
             <p>Carregando convites e convidados...</p>
           </div>
-        ) : items.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="admin-empty-state">
             <span className="admin-empty-state__icon">👥</span>
             <h3 className="admin-empty-state__title">Nenhum convite encontrado</h3>
@@ -944,7 +989,7 @@ export const AdminGuestsPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th>Família / Convite</th>
-                    <th>Integrantes ({items.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
+                    <th>Integrantes ({displayedItems.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
                     <th>RSVP Consolidado</th>
                     <th>Mesa</th>
                     <th>Presença</th>
@@ -953,7 +998,7 @@ export const AdminGuestsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((invite) => (
+                  {displayedItems.map((invite) => (
                     <tr key={invite.id} className="admin-table-row">
                       {/* Família */}
                       <td>
@@ -994,15 +1039,7 @@ export const AdminGuestsPage: React.FC = () => {
                       </td>
 
                       {/* Presença */}
-                      <td>
-                        {invite.checkedInCount > 0 ? (
-                          <span className="admin-checkin-badge admin-checkin-badge--present">
-                            {invite.checkedInCount === invite.guestsCount ? '✓ Todos Presentes' : `✓ ${invite.checkedInCount}/${invite.guestsCount} Presentes`}
-                          </span>
-                        ) : (
-                          <span className="admin-checkin-badge admin-checkin-badge--waiting">Aguardando</span>
-                        )}
-                      </td>
+                      <td>{renderPresenceBadge(invite)}</td>
 
                       {/* Link Privado & WhatsApp */}
                       <td>
@@ -1058,7 +1095,7 @@ export const AdminGuestsPage: React.FC = () => {
 
             {/* Mobile Cards View */}
             <div className="admin-cards-container admin-mobile-only">
-              {items.map((invite) => (
+              {displayedItems.map((invite) => (
                 <div key={invite.id} className="admin-guest-card">
                   <div className="admin-guest-card__header">
                     <div>
@@ -1350,7 +1387,7 @@ export const AdminGuestsPage: React.FC = () => {
                   <div className="admin-detail-section admin-detail-section--highlight">
                     <span className="admin-detail-label">Link Privado de Acesso &amp; WhatsApp</span>
                     <div className="admin-link-box" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', alignItems: 'stretch' }}>
-                      <code className="admin-link-code">{`${window.location.origin}/c/${detailData.token}`}</code>
+                      <code className="admin-link-code">{buildInviteUrl(detailData.token)}</code>
                       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <button
                           type="button"
@@ -1382,34 +1419,63 @@ export const AdminGuestsPage: React.FC = () => {
                       {detailData.guests.map((guest: AdminGuestItemDTO) => (
                         <div key={guest.id} className="admin-guest-detail-row">
                           {editingGuestId === guest.id ? (
-                            <div className="admin-inline-edit-guest">
-                              <input
-                                type="text"
-                                className="admin-input"
-                                value={editGuestName}
-                                onChange={(e) => setEditGuestName(e.target.value)}
-                              />
-                              <label className="admin-checkbox-label">
-                                <input
-                                  type="checkbox"
-                                  checked={editGuestIsChild}
-                                  onChange={(e) => setEditGuestIsChild(e.target.checked)}
-                                />
-                                <span>Criança</span>
-                              </label>
-                              <div className="admin-inline-edit-actions">
+                            <div className="admin-inline-edit-guest" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.7)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(107, 92, 87, 0.15)' }}>
+                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap', width: '100%' }}>
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label className="admin-label" style={{ fontSize: '0.8rem', marginBottom: '0.35rem', display: 'block' }}>
+                                    Nome do convidado
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="admin-input"
+                                    value={editGuestName}
+                                    onChange={(e) => setEditGuestName(e.target.value)}
+                                    placeholder="Nome do integrante"
+                                  />
+                                </div>
+
+                                <div style={{ flex: '1 1 200px' }}>
+                                  <label className="admin-label" style={{ fontSize: '0.8rem', marginBottom: '0.35rem', display: 'block' }}>
+                                    Confirmação de presença
+                                  </label>
+                                  <select
+                                    className="admin-input admin-select-filter"
+                                    value={editGuestRsvpStatus}
+                                    onChange={(e) => setEditGuestRsvpStatus(e.target.value as 'PENDING' | 'CONFIRMED' | 'DECLINED')}
+                                    style={{ minHeight: '48px', width: '100%' }}
+                                  >
+                                    <option value="PENDING">Pendente</option>
+                                    <option value="CONFIRMED">Confirmado</option>
+                                    <option value="DECLINED">Não poderá comparecer</option>
+                                  </select>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', marginTop: '1.75rem' }}>
+                                  <label className="admin-checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      checked={editGuestIsChild}
+                                      onChange={(e) => setEditGuestIsChild(e.target.checked)}
+                                    />
+                                    <span>Criança</span>
+                                  </label>
+                                </div>
+                              </div>
+
+                              <div className="admin-inline-edit-actions" style={{ justifyContent: 'flex-end' }}>
                                 <button
                                   type="button"
                                   className="admin-btn admin-btn--sm admin-btn--primary"
                                   onClick={() => handleSaveGuest(guest.id)}
                                   disabled={isSavingGuest}
                                 >
-                                  Salvar
+                                  {isSavingGuest ? 'Salvando...' : 'Salvar'}
                                 </button>
                                 <button
                                   type="button"
                                   className="admin-btn admin-btn--sm admin-btn--outline"
                                   onClick={() => setEditingGuestId(null)}
+                                  disabled={isSavingGuest}
                                 >
                                   Cancelar
                                 </button>
@@ -1444,6 +1510,7 @@ export const AdminGuestsPage: React.FC = () => {
                                   setEditingGuestId(guest.id);
                                   setEditGuestName(guest.name);
                                   setEditGuestIsChild(guest.isChild);
+                                  setEditGuestRsvpStatus(guest.rsvp?.status || 'PENDING');
                                 }}
                               >
                                 Editar

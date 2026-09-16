@@ -18,8 +18,12 @@ export const Monogram: React.FC<MonogramProps> = ({ size = 'md', variant = 'pill
 
   if (isHero) {
     return (
-      <div className="monogram monogram--hero">
-        <div className="monogram__letters">PE</div>
+      <div className="monogram monogram--hero" aria-label="Monograma P | E">
+        <div className="monogram__letters">
+          <span>P</span>
+          <span className="monogram__divider" aria-hidden="true" />
+          <span>E</span>
+        </div>
         <div className="monogram__rule" />
         <div className="monogram__date">21.11.2026</div>
       </div>
@@ -38,18 +42,19 @@ export const Monogram: React.FC<MonogramProps> = ({ size = 'md', variant = 'pill
     <div
       className="monogram monogram--pill"
       style={{ padding: containerPadding }}
+      aria-label="Monograma P | E"
     >
       <div
         className="monogram__letters"
         style={{
           fontSize: fontMainSize,
           fontWeight: 600,
-          letterSpacing: '0.15em',
           lineHeight: 1.1,
-          paddingLeft: '0.15em',
         }}
       >
-        PE
+        <span>P</span>
+        <span className="monogram__divider" aria-hidden="true" />
+        <span>E</span>
       </div>
       <div
         className="monogram__date"
