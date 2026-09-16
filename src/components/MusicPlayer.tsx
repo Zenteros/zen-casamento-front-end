@@ -62,46 +62,83 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   useEffect(() => {
     if (!soundCloudUrl) return;
 
+    let isMounted = true;
     const SCRIPT_ID = 'soundcloud-widget-api-script';
-    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
 
     const initWidget = () => {
-      if (!window.SC || !iframeRef.current) return;
+      if (!isMounted || !iframeRef.current || !window.SC?.Widget) return;
 
       try {
         const widget = window.SC.Widget(iframeRef.current);
         widgetRef.current = widget;
 
         widget.bind(window.SC.Widget.Events.READY, () => {
+          if (!isMounted) return;
           isReadyRef.current = true;
           if (pendingPlayRef.current) {
-            pendingPlayRef.current = false;
             widget.play();
           }
         });
 
         widget.bind(window.SC.Widget.Events.PLAY, () => {
+          if (!isMounted) return;
           setIsPlaying(true);
           setHasStarted(true);
+          pendingPlayRef.current = false;
         });
 
         widget.bind(window.SC.Widget.Events.PAUSE, () => {
+          if (!isMounted) return;
           setIsPlaying(false);
         });
 
         widget.bind(window.SC.Widget.Events.FINISH, () => {
+          if (!isMounted) return;
           setIsPlaying(false);
         });
 
         widget.bind(window.SC.Widget.Events.ERROR, (err) => {
           console.warn('[MusicPlayer] Erro no widget do SoundCloud:', err);
+          if (!isMounted) return;
           setIsPlaying(false);
+          pendingPlayRef.current = false;
         });
       } catch (err) {
         console.warn('[MusicPlayer] Falha ao inicializar SC.Widget:', err);
       }
     };
 
+    // Listener global de mensagens postMessage para redundância do SoundCloud
+    const handleWindowMessage = (event: MessageEvent) => {
+      if (!isMounted) return;
+      if (typeof event.origin === 'string' && event.origin.includes('soundcloud.com')) {
+        try {
+          const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+          if (data && typeof data === 'object') {
+            if (data.method === 'ready') {
+              isReadyRef.current = true;
+              if (pendingPlayRef.current && widgetRef.current) {
+                widgetRef.current.play();
+              }
+            } else if (data.method === 'play' || data.method === 'playProgress') {
+              setIsPlaying(true);
+              setHasStarted(true);
+              pendingPlayRef.current = false;
+            } else if (data.method === 'pause') {
+              setIsPlaying(false);
+            } else if (data.method === 'finish') {
+              setIsPlaying(false);
+            }
+          }
+        } catch {
+          // ignora mensagens não-JSON de outras origens
+        }
+      }
+    };
+
+    window.addEventListener('message', handleWindowMessage);
+
+    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (!window.SC) {
       if (!script) {
         script = document.createElement('script');
@@ -116,6 +153,8 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
 
     return () => {
+      isMounted = false;
+      window.removeEventListener('message', handleWindowMessage);
       if (script) {
         script.removeEventListener('load', initWidget);
       }
@@ -148,27 +187,58 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   }, [isPlaying, audioSrc]);
 
   const handleClick = () => {
-    if (!hasStarted) {
-      setHasStarted(true);
-    }
-
-    const widget = widgetRef.current;
-    if (soundCloudUrl && widget) {
-      if (isReadyRef.current) {
-        if (isPlaying) {
-          widget.pause();
-        } else {
-          widget.play();
+    if (soundCloudUrl) {
+      const widget = widgetRef.current;
+      if (isPlaying) {
+        // Pausar
+        pendingPlayRef.current = false;
+        setIsPlaying(false);
+        if (widget) {
+          try {
+            widget.pause();
+          } catch {
+            // fallback
+          }
+        }
+        if (iframeRef.current?.contentWindow) {
+          try {
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({ method: 'pause' }),
+              'https://w.soundcloud.com'
+            );
+          } catch {
+            // ignore
+          }
         }
       } else {
-        // Se ainda não estiver pronto, agenda para dar play assim que emitir READY
-        pendingPlayRef.current = !isPlaying;
-        setIsPlaying((prev) => !prev);
+        // Iniciar / Tocar: dispara play no contexto do clique do usuário
+        pendingPlayRef.current = true;
+        if (widget) {
+          try {
+            widget.play();
+          } catch {
+            // fallback
+          }
+        }
+        if (iframeRef.current?.contentWindow) {
+          try {
+            iframeRef.current.contentWindow.postMessage(
+              JSON.stringify({ method: 'play' }),
+              'https://w.soundcloud.com'
+            );
+          } catch {
+            // ignore
+          }
+        }
+        // NÃO definimos isPlaying/hasStarted aqui: aguardamos o evento PLAY real do SoundCloud
       }
       return;
     }
 
-    // Caso de fallback com HTML5 <audio>
+    // Fallback com HTML5 <audio>
+    if (!hasStarted) {
+      setHasStarted(true);
+    }
     setIsPlaying((prev) => !prev);
   };
 
@@ -193,7 +263,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           ref={iframeRef}
           id="sc-widget-player"
           title="SoundCloud Player"
-          allow="autoplay"
+          allow="autoplay; encrypted-media"
           src={soundCloudEmbedSrc}
           style={{
             position: 'fixed',
