@@ -8099,6 +8099,189 @@ html, body {
   padding-left: 1.2rem;
 }
 
+/* ─────────────────────────────────────────────
+   18. FLOATING MUSIC CAPSULE (CONVITE PÚBLICO)
+   ───────────────────────────────────────────── */
+.invite-music-capsule {
+  position: fixed;
+  bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+  right: max(1.5rem, env(safe-area-inset-right, 1.5rem));
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: rgba(252, 250, 247, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  padding: 0.4rem 0.95rem 0.4rem 0.45rem;
+  box-shadow: 0 4px 20px rgba(45, 36, 34, 0.08), 0 1px 4px rgba(200, 109, 81, 0.04);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  user-select: none;
+  animation: fadeInMusicCapsule 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInMusicCapsule {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.invite-music-capsule:hover {
+  border-color: rgba(200, 109, 81, 0.4);
+  box-shadow: 0 6px 24px rgba(200, 109, 81, 0.12), 0 2px 6px rgba(45, 36, 34, 0.06);
+}
+
+.invite-music-capsule--playing {
+  border-color: var(--color-terracotta);
+  box-shadow: 0 6px 24px rgba(200, 109, 81, 0.16), 0 0 0 1px rgba(200, 109, 81, 0.1);
+}
+
+.invite-music-capsule__btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-terracotta);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(200, 109, 81, 0.3);
+}
+
+.invite-music-capsule__btn:hover {
+  background: var(--color-terracotta-dark);
+  transform: scale(1.05);
+}
+
+.invite-music-capsule__btn:active {
+  transform: scale(0.95);
+}
+
+.invite-music-capsule__icon--play {
+  margin-left: 2px;
+}
+
+.invite-music-capsule__info {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.invite-music-capsule__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.15;
+}
+
+.invite-music-capsule__note-icon {
+  font-size: 0.85rem;
+  color: var(--color-terracotta);
+  line-height: 1;
+}
+
+.invite-music-capsule__title {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.invite-music-capsule__artist {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* ─── Micro-equalizer ─── */
+.invite-music-capsule__equalizer {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  width: 10px;
+}
+
+.invite-music-capsule__eq-bar {
+  width: 2px;
+  background-color: var(--color-terracotta);
+  border-radius: 1px;
+  display: block;
+}
+
+.invite-music-capsule__eq-bar--1 {
+  height: 40%;
+  animation: eqBounce1 0.7s ease-in-out infinite alternate;
+}
+
+.invite-music-capsule__eq-bar--2 {
+  height: 90%;
+  animation: eqBounce2 0.55s ease-in-out infinite alternate;
+}
+
+.invite-music-capsule__eq-bar--3 {
+  height: 60%;
+  animation: eqBounce3 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes eqBounce1 {
+  0% { height: 25%; }
+  100% { height: 85%; }
+}
+
+@keyframes eqBounce2 {
+  0% { height: 40%; }
+  100% { height: 100%; }
+}
+
+@keyframes eqBounce3 {
+  0% { height: 20%; }
+  100% { height: 75%; }
+}
+
+/* ─── Mobile adjustments ─── */
+@media (max-width: 640px) {
+  .invite-music-capsule {
+    bottom: max(0.9rem, env(safe-area-inset-bottom, 0.9rem));
+    right: max(0.9rem, env(safe-area-inset-right, 0.9rem));
+    padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+    gap: 0.5rem;
+  }
+
+  .invite-music-capsule__btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .invite-music-capsule__title {
+    font-size: 0.85rem;
+  }
+
+  .invite-music-capsule__artist {
+    font-size: 0.62rem;
+  }
+}
+
+
 
 
 

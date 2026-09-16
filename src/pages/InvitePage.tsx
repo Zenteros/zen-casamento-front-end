@@ -9,6 +9,7 @@ import { AttireSection } from '../components/AttireSection.js';
 import { AccommodationSection } from '../components/AccommodationSection.js';
 import { EditorialPhotoBreak } from '../components/EditorialPhotoBreak.js';
 import { Monogram } from '../components/Monogram.js';
+import { MusicPlayer } from '../components/MusicPlayer.js';
 import { EventDayPage } from './EventDayPage.js';
 import { apiFetch } from '../lib/api.js';
 
@@ -561,6 +562,9 @@ export const InvitePage: React.FC = () => {
 
       {/* 3. Footer editorial */}
       <PageFooter />
+
+      {/* 4. Player de Música Flutuante (Canto Inferior Direito) */}
+      <MusicPlayer songTitle="Iris" artist="Goo Goo Dolls" />
     </>
   );
 };
