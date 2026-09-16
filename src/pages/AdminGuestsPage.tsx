@@ -1235,7 +1235,7 @@ export const AdminGuestsPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateInvite} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <form onSubmit={handleCreateInvite} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
               <div className="admin-modal-body">
                 {createError && (
                   <div className="admin-alert admin-alert--error" role="alert">
