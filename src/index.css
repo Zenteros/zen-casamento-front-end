@@ -6760,11 +6760,28 @@ html, body {
   background-color: rgba(193, 107, 79, 0.08);
 }
 
+.admin-combobox__option--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.admin-combobox__option--disabled:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
 .admin-combobox__option-main {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
+}
+
+.admin-combobox__option-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 }
 
 .admin-combobox__option-name {
@@ -6774,6 +6791,17 @@ html, body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.admin-combobox__option-desc {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.admin-combobox__option-location {
+  font-size: 0.75rem;
+  color: var(--color-terracotta);
+  margin-top: 0.1rem;
 }
 
 .admin-combobox__option-family {
@@ -6791,6 +6819,33 @@ html, body {
   flex-shrink: 0;
 }
 
+.admin-table-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-table-tag--available {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.admin-table-tag--full {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.admin-table-tag--current {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
 .admin-combobox__empty {
   padding: 1.5rem 1rem;
   text-align: center;
@@ -6799,7 +6854,7 @@ html, body {
   font-style: italic;
 }
 
-/* ─── Card de Convidado Selecionado ─── */
+/* ─── Card de Convidado / Mesa Selecionada ─── */
 .admin-selected-guest-card {
   display: flex;
   align-items: center;
@@ -6810,6 +6865,13 @@ html, body {
   border: 1.5px solid var(--color-terracotta);
   border-radius: var(--radius-sm);
   animation: adminModalFadeIn 0.2s ease;
+}
+
+.admin-selected-table-card__location {
+  font-size: 0.78rem;
+  color: var(--color-terracotta);
+  font-weight: 500;
+  margin-top: 0.15rem;
 }
 
 .admin-selected-guest-card__left {

@@ -11,6 +11,7 @@ import { Monogram } from '../components/Monogram.js';
 import { apiFetch } from '../lib/api.js';
 import { AdminModal } from '../components/admin/AdminModal.js';
 import { GuestSearchCombobox } from '../components/admin/GuestSearchCombobox.js';
+import { TableSearchCombobox } from '../components/admin/TableSearchCombobox.js';
 
 const POLLING_INTERVAL_MS = 25000; // 25 segundos
 
@@ -138,6 +139,7 @@ export const AdminTablesPage: React.FC = () => {
 
   // Modal de Alocação de Convidado / Família
   const [allocatingGuest, setAllocatingGuest] = useState<AdminTableGuestSummaryDTO | null>(null);
+  const [allocatingCurrentTableId, setAllocatingCurrentTableId] = useState<string>('');
   const [selectedTargetTableId, setSelectedTargetTableId] = useState<string>('');
   const [isAllocatingFamily, setIsAllocatingFamily] = useState<boolean>(false);
   const [isSubmittingAllocation, setIsSubmittingAllocation] = useState<boolean>(false);
@@ -364,15 +366,17 @@ export const AdminTablesPage: React.FC = () => {
   };
 
   // 7. Alocar / Mover Convidado Individualmente
-  const handleOpenAllocateModal = (guest: AdminTableGuestSummaryDTO, defaultTableId = '') => {
+  const handleOpenAllocateModal = (guest: AdminTableGuestSummaryDTO, currentTableId = '') => {
     setAllocatingGuest(guest);
-    setSelectedTargetTableId(defaultTableId);
+    setAllocatingCurrentTableId(currentTableId);
+    setSelectedTargetTableId('');
     setIsAllocatingFamily(false);
     setAllocationError(null);
   };
 
-  const handleOpenAllocateFamilyModal = (guest: AdminTableGuestSummaryDTO) => {
+  const handleOpenAllocateFamilyModal = (guest: AdminTableGuestSummaryDTO, currentTableId = '') => {
     setAllocatingGuest(guest);
+    setAllocatingCurrentTableId(currentTableId);
     setSelectedTargetTableId('');
     setIsAllocatingFamily(true);
     setAllocationError(null);
@@ -380,7 +384,7 @@ export const AdminTablesPage: React.FC = () => {
 
   const handleConfirmAllocation = async () => {
     if (!allocatingGuest || !selectedTargetTableId) {
-      setAllocationError('Selecione uma mesa de destino.');
+      setAllocationError('Selecione uma mesa de destino válida.');
       return;
     }
 
@@ -421,6 +425,8 @@ export const AdminTablesPage: React.FC = () => {
       }
 
       setAllocatingGuest(null);
+      setAllocatingCurrentTableId('');
+      setSelectedTargetTableId('');
       fetchTables(false);
     } catch (err: unknown) {
       setAllocationError(err instanceof Error ? err.message : 'Erro ao processar alocação.');
@@ -1184,7 +1190,11 @@ export const AdminTablesPage: React.FC = () => {
             ══════════════════════════════════════════════════════ */}
         <AdminModal
           isOpen={!!allocatingGuest}
-          onClose={() => setAllocatingGuest(null)}
+          onClose={() => {
+            setAllocatingGuest(null);
+            setAllocatingCurrentTableId('');
+            setSelectedTargetTableId('');
+          }}
           title={isAllocatingFamily ? 'Alocar Família em Mesa' : 'Alocar Convidado em Mesa'}
           meta={
             isAllocatingFamily
@@ -1221,27 +1231,27 @@ export const AdminTablesPage: React.FC = () => {
                 </div>
 
                 <div className="admin-form-group">
-                  <label htmlFor="target-table-select" className="admin-label">
+                  <label className="admin-label">
                     Selecione a Mesa de Destino *
                   </label>
-                  <select
-                    id="target-table-select"
-                    className="admin-select"
-                    value={selectedTargetTableId}
-                    onChange={(e) => setSelectedTargetTableId(e.target.value)}
-                  >
-                    <option value="">-- Escolha uma mesa --</option>
-                    {tables.map((t) => (
-                      <option
-                        key={t.id}
-                        value={t.id}
-                        disabled={t.available === 0}
-                      >
-                        {t.name} ({t.occupied}/{t.capacity} lugares &bull; {t.available} {t.available === 1 ? 'vaga livre' : 'vagas livres'})
-                        {t.locationHint ? ` - ${t.locationHint}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <TableSearchCombobox
+                    tables={tables}
+                    selectedTableId={selectedTargetTableId}
+                    currentTableId={allocatingCurrentTableId}
+                    onSelect={(tableId) => {
+                      setSelectedTargetTableId(tableId);
+                      if (allocationError) setAllocationError(null);
+                    }}
+                    placeholder="Buscar mesa de destino..."
+                    disabled={isSubmittingAllocation}
+                  />
+                  <span className="admin-input-hint">
+                    {isAllocatingFamily
+                      ? 'Apenas mesas com vagas livres e ativas podem ser selecionadas para a família.'
+                      : allocatingCurrentTableId
+                      ? 'Selecione uma nova mesa com vagas livres para mover o convidado.'
+                      : 'Apenas mesas com vagas livres podem ser selecionadas.'}
+                  </span>
                 </div>
               </div>
 
@@ -1249,7 +1259,11 @@ export const AdminTablesPage: React.FC = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn--outline"
-                  onClick={() => setAllocatingGuest(null)}
+                  onClick={() => {
+                    setAllocatingGuest(null);
+                    setAllocatingCurrentTableId('');
+                    setSelectedTargetTableId('');
+                  }}
                   disabled={isSubmittingAllocation}
                 >
                   Cancelar
