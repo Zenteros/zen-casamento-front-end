@@ -451,7 +451,8 @@ export const AdminTablesPage: React.FC = () => {
   // 9. Adicionar Convidado Sem Mesa diretamente a partir do card da mesa
   const handleOpenAddGuestToTableModal = (table: AdminTableItemDTO) => {
     setTableToAddGuest(table);
-    setSelectedUnassignedGuestId(unassignedGuests.length > 0 ? unassignedGuests[0].id : '');
+    const eligible = unassignedGuests.filter((g) => g.rsvpStatus !== 'DECLINED');
+    setSelectedUnassignedGuestId(eligible.length > 0 ? eligible[0].id : '');
   };
 
   const handleConfirmAddGuestToTable = async () => {
@@ -477,6 +478,11 @@ export const AdminTablesPage: React.FC = () => {
     }
   };
 
+  // Convidados elegíveis sem mesa (exclui quem recusou presença)
+  const eligibleUnassignedGuests = useMemo(() => {
+    return unassignedGuests.filter((g) => g.rsvpStatus !== 'DECLINED');
+  }, [unassignedGuests]);
+
   // Filtros computados de mesas
   const filteredTables = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -497,10 +503,10 @@ export const AdminTablesPage: React.FC = () => {
     });
   }, [tables, tableFilter, searchTerm]);
 
-  // Filtros computados de convidados sem mesa
+  // Filtros computados de convidados sem mesa (apenas elegíveis)
   const filteredUnassignedGuests = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    return unassignedGuests.filter((g) => {
+    return eligibleUnassignedGuests.filter((g) => {
       if (unassignedFilter === 'CONFIRMED' && g.rsvpStatus !== 'CONFIRMED') return false;
       if (unassignedFilter === 'CHILDREN' && !g.isChild) return false;
       if (unassignedFilter === 'PENDING' && g.rsvpStatus !== 'PENDING') return false;
@@ -508,7 +514,7 @@ export const AdminTablesPage: React.FC = () => {
       if (!q) return true;
       return g.name.toLowerCase().includes(q) || g.familyTitle.toLowerCase().includes(q);
     });
-  }, [unassignedGuests, unassignedFilter, searchTerm]);
+  }, [eligibleUnassignedGuests, unassignedFilter, searchTerm]);
 
   const formatTimeOnly = (date: Date) => {
     try {
@@ -979,12 +985,12 @@ export const AdminTablesPage: React.FC = () => {
                           type="button"
                           className="admin-btn admin-btn--sm admin-btn--outline admin-btn--full-width"
                           onClick={() => handleOpenAddGuestToTableModal(table)}
-                          disabled={table.isFull || unassignedGuests.length === 0}
+                          disabled={table.isFull || eligibleUnassignedGuests.length === 0}
                           title={
                             table.isFull
                               ? 'Mesa lotada'
-                              : unassignedGuests.length === 0
-                              ? 'Nenhum convidado sem mesa'
+                              : eligibleUnassignedGuests.length === 0
+                              ? 'Nenhum convidado sem mesa elegível'
                               : 'Adicionar convidado sem mesa nesta mesa'
                           }
                         >
@@ -1004,12 +1010,15 @@ export const AdminTablesPage: React.FC = () => {
             ══════════════════════════════════════════════════════ */}
         {isCreateModalOpen && (
           <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up">
-              <div className="admin-modal__header">
-                <h2 className="admin-modal__title">Cadastrar Nova Mesa</h2>
+            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
+              <div className="admin-modal-header">
+                <div>
+                  <h2 className="admin-modal-title">Cadastrar Nova Mesa</h2>
+                  <span className="admin-modal-meta">Adicionar mesa à Casa de Eventos La Brace</span>
+                </div>
                 <button
                   type="button"
-                  className="admin-modal__close"
+                  className="admin-modal-close"
                   onClick={() => setIsCreateModalOpen(false)}
                   aria-label="Fechar modal"
                 >
@@ -1017,60 +1026,62 @@ export const AdminTablesPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleCreateSubmit} className="admin-modal__body">
-                {createError && (
-                  <div className="admin-alert admin-alert--error" role="alert">
-                    <span>{createError}</span>
+              <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
+                <div className="admin-modal-body">
+                  {createError && (
+                    <div className="admin-alert admin-alert--error" role="alert">
+                      <span>{createError}</span>
+                    </div>
+                  )}
+
+                  <div className="admin-form-group">
+                    <label htmlFor="create-table-name" className="admin-label">
+                      Nome / Número da Mesa *
+                    </label>
+                    <input
+                      id="create-table-name"
+                      type="text"
+                      className="admin-input"
+                      value={createName}
+                      onChange={(e) => setCreateName(e.target.value)}
+                      placeholder="Ex: Mesa 08 - Família Silva"
+                      required
+                    />
                   </div>
-                )}
 
-                <div className="admin-form-group">
-                  <label htmlFor="create-table-name" className="admin-label">
-                    Nome / Número da Mesa *
-                  </label>
-                  <input
-                    id="create-table-name"
-                    type="text"
-                    className="admin-input"
-                    value={createName}
-                    onChange={(e) => setCreateName(e.target.value)}
-                    placeholder="Ex: Mesa 08 - Família Silva"
-                    required
-                  />
+                  <div className="admin-form-group">
+                    <label htmlFor="create-table-capacity" className="admin-label">
+                      Capacidade Total (Lugares) *
+                    </label>
+                    <input
+                      id="create-table-capacity"
+                      type="number"
+                      min="1"
+                      max="50"
+                      className="admin-input"
+                      value={createCapacity}
+                      onChange={(e) => setCreateCapacity(e.target.value)}
+                      required
+                    />
+                    <span className="admin-input-hint">Padrão de 8 a 10 lugares por mesa na La Brace.</span>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="create-table-location" className="admin-label">
+                      Dica de Localização no Salão (Opcional)
+                    </label>
+                    <input
+                      id="create-table-location"
+                      type="text"
+                      className="admin-input"
+                      value={createLocationHint}
+                      onChange={(e) => setCreateLocationHint(e.target.value)}
+                      placeholder="Ex: Lateral direita, próximo ao jardim"
+                    />
+                  </div>
                 </div>
 
-                <div className="admin-form-group">
-                  <label htmlFor="create-table-capacity" className="admin-label">
-                    Capacidade Total (Lugares) *
-                  </label>
-                  <input
-                    id="create-table-capacity"
-                    type="number"
-                    min="1"
-                    max="50"
-                    className="admin-input"
-                    value={createCapacity}
-                    onChange={(e) => setCreateCapacity(e.target.value)}
-                    required
-                  />
-                  <span className="admin-input-hint">Padrão de 8 a 10 lugares por mesa na La Brace.</span>
-                </div>
-
-                <div className="admin-form-group">
-                  <label htmlFor="create-table-location" className="admin-label">
-                    Dica de Localização no Salão (Opcional)
-                  </label>
-                  <input
-                    id="create-table-location"
-                    type="text"
-                    className="admin-input"
-                    value={createLocationHint}
-                    onChange={(e) => setCreateLocationHint(e.target.value)}
-                    placeholder="Ex: Lateral direita, próximo ao jardim"
-                  />
-                </div>
-
-                <div className="admin-modal__actions">
+                <div className="admin-modal-footer">
                   <button
                     type="button"
                     className="admin-btn admin-btn--outline"
@@ -1097,12 +1108,15 @@ export const AdminTablesPage: React.FC = () => {
             ══════════════════════════════════════════════════════ */}
         {editingTable && (
           <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up">
-              <div className="admin-modal__header">
-                <h2 className="admin-modal__title">Editar Mesa</h2>
+            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
+              <div className="admin-modal-header">
+                <div>
+                  <h2 className="admin-modal-title">Editar Mesa</h2>
+                  <span className="admin-modal-meta">Alterar nome, capacidade ou localização</span>
+                </div>
                 <button
                   type="button"
-                  className="admin-modal__close"
+                  className="admin-modal-close"
                   onClick={() => setEditingTable(null)}
                   aria-label="Fechar modal"
                 >
@@ -1110,61 +1124,63 @@ export const AdminTablesPage: React.FC = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleEditSubmit} className="admin-modal__body">
-                {editError && (
-                  <div className="admin-alert admin-alert--error" role="alert">
-                    <span>{editError}</span>
+              <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
+                <div className="admin-modal-body">
+                  {editError && (
+                    <div className="admin-alert admin-alert--error" role="alert">
+                      <span>{editError}</span>
+                    </div>
+                  )}
+
+                  <div className="admin-form-group">
+                    <label htmlFor="edit-table-name" className="admin-label">
+                      Nome / Número da Mesa *
+                    </label>
+                    <input
+                      id="edit-table-name"
+                      type="text"
+                      className="admin-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      required
+                    />
                   </div>
-                )}
 
-                <div className="admin-form-group">
-                  <label htmlFor="edit-table-name" className="admin-label">
-                    Nome / Número da Mesa *
-                  </label>
-                  <input
-                    id="edit-table-name"
-                    type="text"
-                    className="admin-input"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    required
-                  />
+                  <div className="admin-form-group">
+                    <label htmlFor="edit-table-capacity" className="admin-label">
+                      Capacidade Total (Lugares) *
+                    </label>
+                    <input
+                      id="edit-table-capacity"
+                      type="number"
+                      min="1"
+                      max="50"
+                      className="admin-input"
+                      value={editCapacity}
+                      onChange={(e) => setEditCapacity(e.target.value)}
+                      required
+                    />
+                    <span className="admin-input-hint">
+                      Ocupação atual: <strong>{editingTable.occupied} convidados</strong>. A capacidade não pode ser menor que a ocupação.
+                    </span>
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="edit-table-location" className="admin-label">
+                      Dica de Localização no Salão (Opcional)
+                    </label>
+                    <input
+                      id="edit-table-location"
+                      type="text"
+                      className="admin-input"
+                      value={editLocationHint}
+                      onChange={(e) => setEditLocationHint(e.target.value)}
+                      placeholder="Ex: Lateral direita, próximo ao jardim"
+                    />
+                  </div>
                 </div>
 
-                <div className="admin-form-group">
-                  <label htmlFor="edit-table-capacity" className="admin-label">
-                    Capacidade Total (Lugares) *
-                  </label>
-                  <input
-                    id="edit-table-capacity"
-                    type="number"
-                    min="1"
-                    max="50"
-                    className="admin-input"
-                    value={editCapacity}
-                    onChange={(e) => setEditCapacity(e.target.value)}
-                    required
-                  />
-                  <span className="admin-input-hint">
-                    Ocupação atual: <strong>{editingTable.occupied} convidados</strong>. A capacidade não pode ser menor que a ocupação.
-                  </span>
-                </div>
-
-                <div className="admin-form-group">
-                  <label htmlFor="edit-table-location" className="admin-label">
-                    Dica de Localização no Salão (Opcional)
-                  </label>
-                  <input
-                    id="edit-table-location"
-                    type="text"
-                    className="admin-input"
-                    value={editLocationHint}
-                    onChange={(e) => setEditLocationHint(e.target.value)}
-                    placeholder="Ex: Lateral direita, próximo ao jardim"
-                  />
-                </div>
-
-                <div className="admin-modal__actions">
+                <div className="admin-modal-footer">
                   <button
                     type="button"
                     className="admin-btn admin-btn--outline"
@@ -1191,14 +1207,21 @@ export const AdminTablesPage: React.FC = () => {
             ══════════════════════════════════════════════════════ */}
         {allocatingGuest && (
           <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up">
-              <div className="admin-modal__header">
-                <h2 className="admin-modal__title">
-                  {isAllocatingFamily ? 'Alocar Família em Mesa' : 'Alocar Convidado em Mesa'}
-                </h2>
+            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
+              <div className="admin-modal-header">
+                <div>
+                  <h2 className="admin-modal-title">
+                    {isAllocatingFamily ? 'Alocar Família em Mesa' : 'Alocar Convidado em Mesa'}
+                  </h2>
+                  <span className="admin-modal-meta">
+                    {isAllocatingFamily
+                      ? 'Definir mesa para todos os integrantes elegíveis do convite'
+                      : 'Definir ou alterar a mesa do convidado'}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  className="admin-modal__close"
+                  className="admin-modal-close"
                   onClick={() => setAllocatingGuest(null)}
                   aria-label="Fechar modal"
                 >
@@ -1206,56 +1229,58 @@ export const AdminTablesPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="admin-modal__body">
-                {allocationError && (
-                  <div className="admin-alert admin-alert--error" role="alert">
-                    <span>{allocationError}</span>
-                  </div>
-                )}
-
-                <div className="admin-allocation-target-info">
-                  {isAllocatingFamily ? (
-                    <div>
-                      <span className="admin-label">Família / Convite:</span>
-                      <strong className="admin-target-name">{allocatingGuest.familyTitle}</strong>
-                      <p className="admin-allocation-note">
-                        Esta ação tentará alocar todos os membros deste convite na mesa selecionada.
-                      </p>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="admin-label">Convidado:</span>
-                      <strong className="admin-target-name">{allocatingGuest.name}</strong>
-                      <span className="admin-target-sub">{allocatingGuest.familyTitle}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
+                <div className="admin-modal-body">
+                  {allocationError && (
+                    <div className="admin-alert admin-alert--error" role="alert">
+                      <span>{allocationError}</span>
                     </div>
                   )}
+
+                  <div className="admin-allocation-target-info">
+                    {isAllocatingFamily ? (
+                      <div>
+                        <span className="admin-label">Família / Convite:</span>
+                        <strong className="admin-target-name">{allocatingGuest.familyTitle}</strong>
+                        <p className="admin-allocation-note">
+                          Esta ação alocará os membros elegíveis deste convite na mesa selecionada.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="admin-label">Convidado:</span>
+                        <strong className="admin-target-name">{allocatingGuest.name}</strong>
+                        <span className="admin-target-sub">{allocatingGuest.familyTitle}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="admin-form-group">
+                    <label htmlFor="target-table-select" className="admin-label">
+                      Selecione a Mesa de Destino *
+                    </label>
+                    <select
+                      id="target-table-select"
+                      className="admin-select"
+                      value={selectedTargetTableId}
+                      onChange={(e) => setSelectedTargetTableId(e.target.value)}
+                    >
+                      <option value="">-- Escolha uma mesa --</option>
+                      {tables.map((t) => (
+                        <option
+                          key={t.id}
+                          value={t.id}
+                          disabled={t.available === 0}
+                        >
+                          {t.name} ({t.occupied}/{t.capacity} lugares &bull; {t.available} {t.available === 1 ? 'vaga livre' : 'vagas livres'})
+                          {t.locationHint ? ` - ${t.locationHint}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="admin-form-group">
-                  <label htmlFor="target-table-select" className="admin-label">
-                    Selecione a Mesa de Destino *
-                  </label>
-                  <select
-                    id="target-table-select"
-                    className="admin-select"
-                    value={selectedTargetTableId}
-                    onChange={(e) => setSelectedTargetTableId(e.target.value)}
-                  >
-                    <option value="">-- Escolha uma mesa --</option>
-                    {tables.map((t) => (
-                      <option
-                        key={t.id}
-                        value={t.id}
-                        disabled={t.available === 0}
-                      >
-                        {t.name} ({t.occupied}/{t.capacity} lugares &bull; {t.available} {t.available === 1 ? 'vaga livre' : 'vagas livres'})
-                        {t.locationHint ? ` - ${t.locationHint}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="admin-modal__actions">
+                <div className="admin-modal-footer">
                   <button
                     type="button"
                     className="admin-btn admin-btn--outline"
@@ -1283,12 +1308,17 @@ export const AdminTablesPage: React.FC = () => {
             ══════════════════════════════════════════════════════ */}
         {tableToAddGuest && (
           <div className="admin-modal-overlay animate-fade-in" role="dialog" aria-modal="true">
-            <div className="admin-modal admin-modal--md animate-scale-up">
-              <div className="admin-modal__header">
-                <h2 className="admin-modal__title">Adicionar à {tableToAddGuest.name}</h2>
+            <div className="admin-modal admin-modal--md animate-scale-up" style={{ maxHeight: 'min(90vh, 700px)' }}>
+              <div className="admin-modal-header">
+                <div>
+                  <h2 className="admin-modal-title">Adicionar à {tableToAddGuest.name}</h2>
+                  <span className="admin-modal-meta">
+                    Capacidade: {tableToAddGuest.occupied}/{tableToAddGuest.capacity} lugares &bull; {tableToAddGuest.available} {tableToAddGuest.available === 1 ? 'vaga livre' : 'vagas livres'}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  className="admin-modal__close"
+                  className="admin-modal-close"
                   onClick={() => setTableToAddGuest(null)}
                   aria-label="Fechar modal"
                 >
@@ -1296,26 +1326,37 @@ export const AdminTablesPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="admin-modal__body">
-                <div className="admin-form-group">
-                  <label htmlFor="unassigned-guest-select" className="admin-label">
-                    Selecione um convidado sem mesa:
-                  </label>
-                  <select
-                    id="unassigned-guest-select"
-                    className="admin-select"
-                    value={selectedUnassignedGuestId}
-                    onChange={(e) => setSelectedUnassignedGuestId(e.target.value)}
-                  >
-                    {unassignedGuests.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name} ({g.familyTitle}) - {g.rsvpStatus === 'CONFIRMED' ? 'Confirmado' : g.rsvpStatus === 'DECLINED' ? 'Recusou' : 'Pendente'} {g.isChild ? '• Criança' : ''}
-                      </option>
-                    ))}
-                  </select>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', backgroundColor: '#ffffff' }}>
+                <div className="admin-modal-body">
+                  {eligibleUnassignedGuests.length === 0 ? (
+                    <div className="admin-alert admin-alert--info" role="status">
+                      <span>Não há convidados elegíveis sem mesa para alocar no momento.</span>
+                    </div>
+                  ) : (
+                    <div className="admin-form-group">
+                      <label htmlFor="unassigned-guest-select" className="admin-label">
+                        Selecione um convidado sem mesa:
+                      </label>
+                      <select
+                        id="unassigned-guest-select"
+                        className="admin-select"
+                        value={selectedUnassignedGuestId}
+                        onChange={(e) => setSelectedUnassignedGuestId(e.target.value)}
+                      >
+                        {eligibleUnassignedGuests.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name} — {g.familyTitle} — {g.rsvpStatus === 'CONFIRMED' ? 'Confirmado' : 'Pendente'}{g.isChild ? ' • Criança' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="admin-input-hint">
+                        Apenas convidados confirmados ou pendentes sem mesa são elegíveis para seleção.
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="admin-modal__actions">
+                <div className="admin-modal-footer">
                   <button
                     type="button"
                     className="admin-btn admin-btn--outline"
@@ -1327,7 +1368,7 @@ export const AdminTablesPage: React.FC = () => {
                     type="button"
                     className="admin-btn admin-btn--primary"
                     onClick={handleConfirmAddGuestToTable}
-                    disabled={!selectedUnassignedGuestId}
+                    disabled={!selectedUnassignedGuestId || eligibleUnassignedGuests.length === 0}
                   >
                     Adicionar à Mesa
                   </button>
