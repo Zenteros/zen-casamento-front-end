@@ -289,6 +289,15 @@ export interface AdminInviteListResponseDTO {
   counts: AdminInviteCountsDTO;
 }
 
+export interface AdminDeleteInviteResponseDTO {
+  success: boolean;
+  message: string;
+  deletedInviteId: string;
+  deletedFamilyTitle: string;
+  deletedGuestsCount: number;
+}
+
+
 export interface AdminCreateTableDTO {
   name: string;
   capacity: number;

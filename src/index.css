@@ -6387,6 +6387,46 @@ html, body {
   border-color: #a25039;
 }
 
+.admin-btn--outline-warning {
+  background-color: transparent;
+  color: #d97706;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+}
+
+.admin-btn--outline-warning:hover {
+  background-color: #fffbeb;
+  border-color: #d97706;
+}
+
+.admin-btn--danger {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.admin-btn--danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+.admin-btn--danger:disabled {
+  background-color: #fca5a5;
+  border-color: #fca5a5;
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.admin-alert--danger {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
 /* ─── Cards Mobile ─── */
 .admin-guest-card {
   background-color: var(--color-white);
@@ -6427,8 +6467,9 @@ html, body {
 }
 
 .admin-guest-card__actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
   margin-top: 0.35rem;
 }

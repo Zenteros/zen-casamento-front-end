@@ -10,6 +10,7 @@ import type {
   ConsolidatedRsvpStatus,
   AdminImportPreviewResponseDTO,
   AdminImportConfirmResponseDTO,
+  AdminDeleteInviteResponseDTO,
 } from '../contracts/index.js';
 import { calculateConsolidatedInviteStatus } from '../contracts/index.js';
 import { Monogram } from '../components/Monogram.js';
@@ -80,6 +81,15 @@ const KeyIcon: React.FC = () => (
   </svg>
 );
 
+const TrashIcon: React.FC = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
 const AlertTriangleIcon: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -87,6 +97,7 @@ const AlertTriangleIcon: React.FC = () => (
     <line x1="12" y1="17" x2="12.01" y2="17" />
   </svg>
 );
+
 
 const WhatsAppIcon: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -174,6 +185,10 @@ export const AdminGuestsPage: React.FC = () => {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [regenerateInviteTarget, setRegenerateInviteTarget] = useState<AdminInviteItemDTO | AdminInviteDetailDTO | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [deleteInviteTarget, setDeleteInviteTarget] = useState<AdminInviteItemDTO | AdminInviteDetailDTO | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Confirmação de Alterações Não Salvas
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
@@ -471,7 +486,7 @@ export const AdminGuestsPage: React.FC = () => {
 
   // Fechamento Seguro de Modais com Confirmação
   const handleRequestClose = useCallback(
-    (modalType: 'CREATE' | 'DETAIL' | 'IMPORT' | 'REGENERATE') => {
+    (modalType: 'CREATE' | 'DETAIL' | 'IMPORT' | 'REGENERATE' | 'DELETE') => {
       if (modalType === 'CREATE') {
         if (isCreateDirty()) {
           setPendingCloseAction(() => () => {
@@ -521,9 +536,15 @@ export const AdminGuestsPage: React.FC = () => {
         }
       } else if (modalType === 'REGENERATE') {
         setRegenerateInviteTarget(null);
+      } else if (modalType === 'DELETE') {
+        if (!isDeleting) {
+          setDeleteInviteTarget(null);
+          setDeleteConfirmationText('');
+          setDeleteError(null);
+        }
       }
     },
-    [isCreateDirty, isDetailDirty, importStep, csvInputText]
+    [isCreateDirty, isDetailDirty, importStep, csvInputText, isDeleting]
   );
 
   // Fechar modais com tecla Escape respeitando confirmação
@@ -532,6 +553,8 @@ export const AdminGuestsPage: React.FC = () => {
       if (e.key === 'Escape') {
         if (showUnsavedConfirm) {
           setShowUnsavedConfirm(false);
+        } else if (deleteInviteTarget && !isDeleting) {
+          handleRequestClose('DELETE');
         } else if (regenerateInviteTarget) {
           handleRequestClose('REGENERATE');
         } else if (detailInviteId) {
@@ -547,6 +570,8 @@ export const AdminGuestsPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     showUnsavedConfirm,
+    deleteInviteTarget,
+    isDeleting,
     regenerateInviteTarget,
     detailInviteId,
     isCreateModalOpen,
@@ -708,7 +733,7 @@ export const AdminGuestsPage: React.FC = () => {
     setDetailError(null);
 
     try {
-      const promises: Promise<any>[] = [];
+      const promises: Promise<unknown>[] = [];
 
       // 1. Título da Família alterado
       if (editFamilyTitle.trim() !== initialFamilyTitle.trim()) {
@@ -843,6 +868,54 @@ export const AdminGuestsPage: React.FC = () => {
     }
   };
 
+  // 11. Confirmar e Executar Exclusão Segura de Convite
+  const handleConfirmDelete = async () => {
+    if (!deleteInviteTarget || deleteConfirmationText.trim() !== 'EXCLUIR' || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await apiFetch(`/api/v1/admin/invites/${deleteInviteTarget.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        let errMsg = 'Falha ao excluir convite.';
+        try {
+          const errData = await res.json();
+          if (errData?.error) errMsg = errData.error;
+        } catch {}
+        throw new Error(errMsg);
+      }
+
+      const data = (await res.json().catch(() => null)) as AdminDeleteInviteResponseDTO | null;
+      const deletedTitle = data?.deletedFamilyTitle || deleteInviteTarget.familyTitle;
+      const deletedId = deleteInviteTarget.id;
+
+      setDeleteInviteTarget(null);
+      setDeleteConfirmationText('');
+      setDeleteError(null);
+
+      // Se o modal de detalhes do mesmo convite estiver aberto, fecha também
+      if (detailInviteId === deletedId) {
+        setDetailInviteId(null);
+        setDetailData(null);
+        setDraftGuests([]);
+      }
+
+      // Refetch de todos os dados oficiais da API (itens, contadores/KPIs e paginação)
+      await fetchInvites(false);
+      showToast(`Convite "${deletedTitle}" excluído com sucesso! 🗑️`);
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Erro ao tentar excluir o convite.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatTimeOnly = (date: Date) => {
     try {
       return new Intl.DateTimeFormat('pt-BR', {
@@ -942,7 +1015,7 @@ export const AdminGuestsPage: React.FC = () => {
               className="admin-btn admin-btn--icon admin-header__refresh"
               onClick={() => fetchInvites(false)}
               disabled={isRefreshing}
-              title="Atualizar lista agora"
+              title={`Atualizar lista agora (Última atualização: ${formatTimeOnly(lastUpdatedAt)})`}
             >
               <RefreshIcon spinning={isRefreshing} />
             </button>
@@ -1287,11 +1360,23 @@ export const AdminGuestsPage: React.FC = () => {
                           </button>
                           <button
                             type="button"
-                            className="admin-btn admin-btn--sm admin-btn--outline-danger"
+                            className="admin-btn admin-btn--sm admin-btn--outline-warning"
                             onClick={() => setRegenerateInviteTarget(invite)}
                             title="Regenerar link (invalida link anterior)"
                           >
                             <KeyIcon />
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn--sm admin-btn--outline-danger"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setDeleteConfirmationText('');
+                              setDeleteInviteTarget(invite);
+                            }}
+                            title="Excluir convite permanentemente"
+                          >
+                            <TrashIcon />
                           </button>
                         </div>
                       </td>
@@ -1356,11 +1441,23 @@ export const AdminGuestsPage: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="admin-btn admin-btn--sm admin-btn--outline-danger"
+                      className="admin-btn admin-btn--sm admin-btn--outline-warning"
                       onClick={() => setRegenerateInviteTarget(invite)}
                       title="Regenerar Link"
                     >
                       <KeyIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--sm admin-btn--outline-danger"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteConfirmationText('');
+                        setDeleteInviteTarget(invite);
+                      }}
+                      title="Excluir Convite"
+                    >
+                      <TrashIcon />
                     </button>
                   </div>
                 </div>
@@ -1778,7 +1875,7 @@ export const AdminGuestsPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  className="admin-btn admin-btn--outline-danger"
+                  className="admin-btn admin-btn--outline-warning"
                   onClick={() => {
                     if (detailData) setRegenerateInviteTarget(detailData);
                   }}
@@ -1786,6 +1883,21 @@ export const AdminGuestsPage: React.FC = () => {
                   title="Regenerar link exclusivo deste convite"
                 >
                   <KeyIcon /> Regenerar Link
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline-danger"
+                  onClick={() => {
+                    if (detailData) {
+                      setDeleteError(null);
+                      setDeleteConfirmationText('');
+                      setDeleteInviteTarget(detailData);
+                    }
+                  }}
+                  disabled={isSavingDetail}
+                  title="Excluir convite permanentemente"
+                >
+                  <TrashIcon /> Excluir Convite
                 </button>
               </div>
 
@@ -1858,6 +1970,87 @@ export const AdminGuestsPage: React.FC = () => {
                 disabled={isRegenerating}
               >
                 {isRegenerating ? 'Gerando novo link...' : 'Confirmar e Regenerar Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          7.1. MODAL: CONFIRMAÇÃO SEGURA DE EXCLUSÃO DE CONVITE
+          ══════════════════════════════════════════════════════ */}
+      {deleteInviteTarget && (
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="admin-modal admin-modal--confirm animate-slide-up">
+            <div className="admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#dc2626' }}><AlertTriangleIcon /></span>
+                <h2 className="admin-modal-title" style={{ color: '#991b1b' }}>Excluir convite?</h2>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => handleRequestClose('DELETE')}
+                disabled={isDeleting}
+                aria-label="Fechar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="admin-modal-body">
+              <p className="admin-confirm-text">
+                Você está prestes a excluir o convite da <strong>"{deleteInviteTarget.familyTitle}"</strong>.
+              </p>
+
+              <div className="admin-alert admin-alert--danger" style={{ marginTop: '0.75rem' }}>
+                <p style={{ margin: 0, fontSize: '0.86rem', fontWeight: 600 }}>
+                  Esta ação removerá o convite, seus integrantes, confirmações, sessões e demais dados relacionados. Esta ação não poderá ser desfeita.
+                </p>
+              </div>
+
+              {deleteError && (
+                <div className="admin-alert admin-alert--error" style={{ marginTop: '0.75rem' }} role="alert">
+                  {deleteError}
+                </div>
+              )}
+
+              <div style={{ marginTop: '1rem' }}>
+                <label className="admin-label" style={{ display: 'block', marginBottom: '0.4rem' }}>
+                  Para confirmar, digite <strong>EXCLUIR</strong> no campo abaixo:
+                </label>
+                <input
+                  type="text"
+                  className="admin-input"
+                  placeholder="Digite EXCLUIR"
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  disabled={isDeleting}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                className="admin-btn admin-btn--outline"
+                onClick={() => handleRequestClose('DELETE')}
+                disabled={isDeleting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--danger"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting || deleteConfirmationText.trim() !== 'EXCLUIR'}
+              >
+                {isDeleting ? 'Excluindo...' : 'Excluir convite'}
               </button>
             </div>
           </div>

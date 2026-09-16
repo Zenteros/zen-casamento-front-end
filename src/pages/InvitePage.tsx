@@ -71,7 +71,6 @@ export const InvitePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Registro técnico discreto da fase temporal em ambiente de desenvolvimento
   useEffect(() => {
@@ -187,7 +186,6 @@ export const InvitePage: React.FC = () => {
 
     setSaving(true);
     setError(null);
-    setSuccessMessage(null);
 
     const payloadItems: GuestRsvpItem[] = invite.guests.map((g) => ({
       guestId: g.id,
@@ -210,7 +208,6 @@ export const InvitePage: React.FC = () => {
       const data: { invite: InviteDTO } = await res.json();
       setInvite(data.invite);
       populateRsvpState(data.invite);
-      setSuccessMessage('Confirmação recebida. Mal podemos esperar para celebrar com vocês.');
     } catch (err: unknown) {
       setError((err as Error).message || 'Ocorreu um erro ao salvar o RSVP.');
     } finally {
