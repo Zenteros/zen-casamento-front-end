@@ -564,7 +564,7 @@ export const InvitePage: React.FC = () => {
       <PageFooter />
 
       {/* 4. Player de Música Flutuante (Canto Inferior Direito) */}
-      <MusicPlayer songTitle="Iris" artist="Goo Goo Dolls" />
+      <MusicPlayer />
     </>
   );
 };

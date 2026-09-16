@@ -1,19 +1,135 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+declare global {
+  interface Window {
+    SC?: {
+      Widget: {
+        (element: HTMLIFrameElement | string): SCWidget;
+        Events: {
+          LOAD_PROGRESS: string;
+          PLAY_PROGRESS: string;
+          PLAY: string;
+          PAUSE: string;
+          FINISH: string;
+          SEEK: string;
+          READY: string;
+          OPEN_SHARE_PANEL: string;
+          CLICK_DOWNLOAD: string;
+          CLICK_BUY: string;
+          ERROR: string;
+        };
+      };
+    };
+  }
+}
+
+interface SCWidget {
+  bind(event: string, callback: (...args: unknown[]) => void): void;
+  unbind(event: string): void;
+  load(url: string, options?: Record<string, unknown>): void;
+  play(): void;
+  pause(): void;
+  toggle(): void;
+  seekTo(milliseconds: number): void;
+  setVolume(volume: number): void;
+  isPaused(callback: (paused: boolean) => void): void;
+}
+
 export interface MusicPlayerProps {
-  songTitle?: string;
-  artist?: string;
+  /** URL da faixa no SoundCloud */
+  soundCloudUrl?: string;
+  /** Fallback para áudio direto em HTML5 se necessário */
   audioSrc?: string;
 }
 
+const DEFAULT_SOUNDCLOUD_URL =
+  'https://soundcloud.com/user-943762251-273454811/goo-goo-dolls-iris-slowed';
+
 export const MusicPlayer: React.FC<MusicPlayerProps> = ({
-  songTitle = 'Iris',
-  artist = 'Goo Goo Dolls',
+  soundCloudUrl = DEFAULT_SOUNDCLOUD_URL,
   audioSrc,
 }) => {
+  const [hasStarted, setHasStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const widgetRef = useRef<SCWidget | null>(null);
+  const isReadyRef = useRef<boolean>(false);
+  const pendingPlayRef = useRef<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // 1. Carrega o script da Widget API oficial do SoundCloud dinamicamente se necessário
+  useEffect(() => {
+    if (!soundCloudUrl) return;
+
+    const SCRIPT_ID = 'soundcloud-widget-api-script';
+    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+
+    const initWidget = () => {
+      if (!window.SC || !iframeRef.current) return;
+
+      try {
+        const widget = window.SC.Widget(iframeRef.current);
+        widgetRef.current = widget;
+
+        widget.bind(window.SC.Widget.Events.READY, () => {
+          isReadyRef.current = true;
+          if (pendingPlayRef.current) {
+            pendingPlayRef.current = false;
+            widget.play();
+          }
+        });
+
+        widget.bind(window.SC.Widget.Events.PLAY, () => {
+          setIsPlaying(true);
+          setHasStarted(true);
+        });
+
+        widget.bind(window.SC.Widget.Events.PAUSE, () => {
+          setIsPlaying(false);
+        });
+
+        widget.bind(window.SC.Widget.Events.FINISH, () => {
+          setIsPlaying(false);
+        });
+
+        widget.bind(window.SC.Widget.Events.ERROR, (err) => {
+          console.warn('[MusicPlayer] Erro no widget do SoundCloud:', err);
+          setIsPlaying(false);
+        });
+      } catch (err) {
+        console.warn('[MusicPlayer] Falha ao inicializar SC.Widget:', err);
+      }
+    };
+
+    if (!window.SC) {
+      if (!script) {
+        script = document.createElement('script');
+        script.id = SCRIPT_ID;
+        script.src = 'https://w.soundcloud.com/player/api.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+      script.addEventListener('load', initWidget);
+    } else {
+      initWidget();
+    }
+
+    return () => {
+      if (script) {
+        script.removeEventListener('load', initWidget);
+      }
+      if (widgetRef.current) {
+        try {
+          widgetRef.current.pause();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [soundCloudUrl]);
+
+  // Fallback caso use HTML5 áudio direto
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !audioSrc) return;
@@ -31,7 +147,28 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
   }, [isPlaying, audioSrc]);
 
-  const togglePlay = () => {
+  const handleClick = () => {
+    if (!hasStarted) {
+      setHasStarted(true);
+    }
+
+    const widget = widgetRef.current;
+    if (soundCloudUrl && widget) {
+      if (isReadyRef.current) {
+        if (isPlaying) {
+          widget.pause();
+        } else {
+          widget.play();
+        }
+      } else {
+        // Se ainda não estiver pronto, agenda para dar play assim que emitir READY
+        pendingPlayRef.current = !isPlaying;
+        setIsPlaying((prev) => !prev);
+      }
+      return;
+    }
+
+    // Caso de fallback com HTML5 <audio>
     setIsPlaying((prev) => !prev);
   };
 
@@ -39,12 +176,42 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     setIsPlaying(false);
   };
 
+  const soundCloudEmbedSrc = soundCloudUrl
+    ? `https://w.soundcloud.com/player/?url=${encodeURIComponent(
+        soundCloudUrl
+      )}&color=%23c86d51&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false`
+    : undefined;
+
   return (
     <aside
-      className={`invite-music-capsule ${isPlaying ? 'invite-music-capsule--playing' : ''}`}
-      aria-label="Player de música do convite"
+      className="invite-sound-container"
+      aria-label="Controle de áudio do convite"
     >
-      {audioSrc && (
+      {/* Widget oficial do SoundCloud (oculto visualmente mantendo integração e API) */}
+      {soundCloudEmbedSrc && (
+        <iframe
+          ref={iframeRef}
+          id="sc-widget-player"
+          title="SoundCloud Player"
+          allow="autoplay"
+          src={soundCloudEmbedSrc}
+          style={{
+            position: 'fixed',
+            width: '1px',
+            height: '1px',
+            opacity: 0,
+            pointerEvents: 'none',
+            border: 'none',
+            bottom: 0,
+            right: 0,
+          }}
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Fallback de áudio direto se configurado */}
+      {!soundCloudUrl && audioSrc && (
         <audio
           ref={audioRef}
           src={audioSrc}
@@ -53,66 +220,76 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         />
       )}
 
+      {/* Botão de controle minimalista flutuante */}
       <button
         type="button"
-        className="invite-music-capsule__btn"
-        onClick={togglePlay}
-        aria-label={isPlaying ? 'Pausar música' : 'Tocar música'}
-        title={isPlaying ? 'Pausar música' : 'Tocar música'}
+        onClick={handleClick}
+        className={`invite-sound-control ${
+          !hasStarted
+            ? 'invite-sound-control--prompt'
+            : `invite-sound-control--compact ${isPlaying ? 'invite-sound-control--playing' : ''}`
+        }`}
+        aria-label={
+          !hasStarted
+            ? 'Ativar o som do convite'
+            : isPlaying
+            ? 'Pausar som'
+            : 'Ativar som'
+        }
+        title={
+          !hasStarted
+            ? 'Ativar o som'
+            : isPlaying
+            ? 'Pausar som'
+            : 'Ativar som'
+        }
       >
-        {isPlaying ? (
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="invite-music-capsule__icon"
-            aria-hidden="true"
-          >
-            <rect x="6" y="4" width="4" height="16" rx="1.5" />
-            <rect x="14" y="4" width="4" height="16" rx="1.5" />
-          </svg>
-        ) : (
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="invite-music-capsule__icon invite-music-capsule__icon--play"
-            aria-hidden="true"
-          >
-            <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72L9.5 4.28a1 1 0 0 0-1.5.86z" />
-          </svg>
+        <span className="invite-sound-control__icon" aria-hidden="true">
+          {!hasStarted || isPlaying ? (
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon
+                points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
+                fill="currentColor"
+                stroke="none"
+              />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+          ) : (
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon
+                points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
+                fill="currentColor"
+                stroke="none"
+              />
+              <line x1="23" y1="9" x2="17" y2="15" />
+              <line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          )}
+        </span>
+
+        {!hasStarted && (
+          <span className="invite-sound-control__label">Ative o som</span>
         )}
       </button>
-
-      <div
-        className="invite-music-capsule__info"
-        onClick={togglePlay}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            togglePlay();
-          }
-        }}
-        aria-label={`${songTitle} - ${artist}`}
-      >
-        <div className="invite-music-capsule__title-row">
-          {isPlaying ? (
-            <span className="invite-music-capsule__equalizer" aria-hidden="true">
-              <span className="invite-music-capsule__eq-bar invite-music-capsule__eq-bar--1" />
-              <span className="invite-music-capsule__eq-bar invite-music-capsule__eq-bar--2" />
-              <span className="invite-music-capsule__eq-bar invite-music-capsule__eq-bar--3" />
-            </span>
-          ) : (
-            <span className="invite-music-capsule__note-icon" aria-hidden="true">♫</span>
-          )}
-          <span className="invite-music-capsule__title">{songTitle}</span>
-        </div>
-        <span className="invite-music-capsule__artist">{artist}</span>
-      </div>
     </aside>
   );
 };
