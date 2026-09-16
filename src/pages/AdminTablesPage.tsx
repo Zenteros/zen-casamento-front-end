@@ -635,107 +635,107 @@ export const AdminTablesPage: React.FC = () => {
         <section className="admin-stats-bar" aria-label="Resumo de capacidade e ocupação">
           <div className="admin-stat-box">
             <span className="admin-stat-box__label">Total de Mesas</span>
-            <strong className="admin-stat-box__value">{counts.totalTables}</strong>
+            <strong className="admin-stat-box__val">{counts.totalTables}</strong>
           </div>
           <div className="admin-stat-box">
             <span className="admin-stat-box__label">Lugares Totais</span>
-            <strong className="admin-stat-box__value">{counts.totalSeats}</strong>
+            <strong className="admin-stat-box__val">{counts.totalSeats}</strong>
           </div>
-          <div className="admin-stat-box">
+          <div className="admin-stat-box admin-stat-box--terracotta">
             <span className="admin-stat-box__label">Ocupados</span>
-            <strong className="admin-stat-box__value admin-text-terracotta">{counts.occupiedSeats}</strong>
+            <strong className="admin-stat-box__val">{counts.occupiedSeats}</strong>
           </div>
-          <div className="admin-stat-box">
+          <div className="admin-stat-box admin-stat-box--confirmed">
             <span className="admin-stat-box__label">Lugares Livres</span>
-            <strong className="admin-stat-box__value admin-split-stat__value--green">{counts.availableSeats}</strong>
+            <strong className="admin-stat-box__val">{counts.availableSeats}</strong>
           </div>
           <div className="admin-stat-box">
             <span className="admin-stat-box__label">Mesas Lotadas</span>
-            <strong className="admin-stat-box__value">{counts.fullTables}</strong>
+            <strong className="admin-stat-box__val">{counts.fullTables}</strong>
           </div>
           <div className="admin-stat-box">
             <span className="admin-stat-box__label">Mesas c/ Vagas</span>
-            <strong className="admin-stat-box__value">{counts.tablesWithAvailableSeats}</strong>
+            <strong className="admin-stat-box__val">{counts.tablesWithAvailableSeats}</strong>
           </div>
-          <div className="admin-stat-box admin-stat-box--highlight">
+          <div className="admin-stat-box admin-stat-box--pending">
             <span className="admin-stat-box__label">Sem Mesa</span>
-            <strong className="admin-stat-box__value admin-text-warning">{counts.withoutTableGuests}</strong>
+            <strong className="admin-stat-box__val">{counts.withoutTableGuests}</strong>
           </div>
         </section>
 
         {/* ══════════════════════════════════════════════════════
             3. BARRA DE CONTROLE & BUSCA
             ══════════════════════════════════════════════════════ */}
-        <section className="admin-toolbar" aria-label="Controles e filtros">
-          <div className="admin-toolbar__left">
-            <button
-              type="button"
-              className="admin-btn admin-btn--primary"
-              onClick={handleOpenCreateModal}
-            >
-              <PlusIcon />
-              <span>Cadastrar Nova Mesa</span>
-            </button>
-          </div>
-
-          <div className="admin-toolbar__right">
-            {/* Campo de Busca */}
-            <div className="admin-search-wrap">
+        <div className="admin-guests-toolbar">
+          <div className="admin-search-wrap">
+            <span className="admin-search-icon">
               <SearchIcon />
-              <input
-                type="text"
-                className="admin-search-input"
-                placeholder="Buscar mesa, convidado ou família..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Buscar mesas ou convidados"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  className="admin-search-clear"
-                  onClick={() => setSearchTerm('')}
-                  title="Limpar busca"
-                  aria-label="Limpar busca"
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-
-            {/* Filtro de Mesas */}
-            <div className="admin-filter-group" role="group" aria-label="Filtro de mesas">
+            </span>
+            <input
+              type="text"
+              className="admin-search-input"
+              placeholder="Buscar mesa, convidado ou família..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar mesas ou convidados"
+            />
+            {searchTerm && (
               <button
                 type="button"
-                className={`admin-filter-chip ${tableFilter === 'ALL' ? 'admin-filter-chip--active' : ''}`}
+                className="admin-search-clear"
+                onClick={() => setSearchTerm('')}
+                title="Limpar busca"
+                aria-label="Limpar busca"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="admin-filter-group" role="group" aria-label="Filtro de mesas">
+            <div className="admin-pill-filters">
+              <button
+                type="button"
+                className={`admin-filter-pill ${tableFilter === 'ALL' ? 'admin-filter-pill--active' : ''}`}
                 onClick={() => setTableFilter('ALL')}
               >
                 Todas ({tables.length})
               </button>
               <button
                 type="button"
-                className={`admin-filter-chip ${tableFilter === 'AVAILABLE' ? 'admin-filter-chip--active' : ''}`}
+                className={`admin-filter-pill ${tableFilter === 'AVAILABLE' ? 'admin-filter-pill--active' : ''}`}
                 onClick={() => setTableFilter('AVAILABLE')}
               >
                 Com Vagas ({counts.tablesWithAvailableSeats})
               </button>
               <button
                 type="button"
-                className={`admin-filter-chip ${tableFilter === 'FULL' ? 'admin-filter-chip--active' : ''}`}
+                className={`admin-filter-pill ${tableFilter === 'FULL' ? 'admin-filter-pill--active' : ''}`}
                 onClick={() => setTableFilter('FULL')}
               >
                 Lotadas ({counts.fullTables})
               </button>
               <button
                 type="button"
-                className={`admin-filter-chip ${tableFilter === 'EMPTY' ? 'admin-filter-chip--active' : ''}`}
+                className={`admin-filter-pill ${tableFilter === 'EMPTY' ? 'admin-filter-pill--active' : ''}`}
                 onClick={() => setTableFilter('EMPTY')}
               >
                 Vazias ({counts.emptyTables})
               </button>
             </div>
           </div>
-        </section>
+
+          <div>
+            <button
+              type="button"
+              className="admin-btn admin-btn--primary admin-guests-new-btn"
+              onClick={handleOpenCreateModal}
+            >
+              <PlusIcon />
+              <span>Cadastrar Nova Mesa</span>
+            </button>
+          </div>
+        </div>
 
         {/* ══════════════════════════════════════════════════════
             4. LAYOUT DUAL: CONVIDADOS SEM MESA & GRADE DE MESAS

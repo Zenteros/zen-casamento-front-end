@@ -773,17 +773,17 @@ export const AdminGuestsPage: React.FC = () => {
         {/* ── Submenu de Navegação Administrativa ── */}
         <div className="admin-subnav">
           <div className="admin-subnav__container">
-            <Link to="/admin/overview" className="admin-subnav__tab">
-              📊 Visão Geral
+            <Link to="/admin" className="admin-subnav__tab">
+              🏛️ Visão Geral
             </Link>
             <Link to="/admin/guests" className="admin-subnav__tab admin-subnav__tab--active">
               👥 Convidados &amp; Convites
             </Link>
             <Link to="/admin/tables" className="admin-subnav__tab">
-              🪑 Mapa de Mesas
+              🍽️ Mesas &amp; Alocação
             </Link>
             <Link to="/admin/media" className="admin-subnav__tab">
-              📸 Mural de Fotos
+              📷 Moderação de Fotos &amp; Vídeos
             </Link>
             <Link to="/admin/content" className="admin-subnav__tab">
               📋 Conteúdo do Evento
@@ -1063,7 +1063,7 @@ export const AdminGuestsPage: React.FC = () => {
 
                       {/* Link Privado & WhatsApp */}
                       <td className="admin-col-link">
-                        <div className="admin-link-cell" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <div className="admin-link-cell">
                           <button
                             type="button"
                             className={`admin-btn-copy ${copiedTokenId === invite.id ? 'admin-btn-copy--success' : ''}`}
@@ -1235,82 +1235,84 @@ export const AdminGuestsPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleCreateInvite} className="admin-modal-body">
-              {createError && (
-                <div className="admin-alert admin-alert--error" role="alert">
-                  {createError}
+            <form onSubmit={handleCreateInvite} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div className="admin-modal-body">
+                {createError && (
+                  <div className="admin-alert admin-alert--error" role="alert">
+                    {createError}
+                  </div>
+                )}
+
+                <div className="admin-form-group">
+                  <label htmlFor="familyTitle" className="admin-label">
+                    Título da Família / Convite *
+                  </label>
+                  <input
+                    id="familyTitle"
+                    type="text"
+                    className="admin-input"
+                    placeholder="Ex: Família Souza Silva, Padrinho Lucas &amp; Convidada..."
+                    value={newFamilyTitle}
+                    onChange={(e) => setNewFamilyTitle(e.target.value)}
+                    required
+                  />
+                  <span className="admin-field-hint">Este título é exibido no topo do convite digital.</span>
                 </div>
-              )}
 
-              <div className="admin-form-group">
-                <label htmlFor="familyTitle" className="admin-label">
-                  Título da Família / Convite *
-                </label>
-                <input
-                  id="familyTitle"
-                  type="text"
-                  className="admin-input"
-                  placeholder="Ex: Família Souza Silva, Padrinho Lucas &amp; Convidada..."
-                  value={newFamilyTitle}
-                  onChange={(e) => setNewFamilyTitle(e.target.value)}
-                  required
-                />
-                <span className="admin-field-hint">Este título é exibido no topo do convite digital.</span>
-              </div>
-
-              <div className="admin-form-group">
-                <label className="admin-label">Integrantes da Família *</label>
-                <div className="admin-dynamic-guests-list">
-                  {newGuestsList.map((guest, index) => (
-                    <div key={index} className="admin-guest-row-input">
-                      <input
-                        type="text"
-                        className="admin-input admin-input--guest-name"
-                        placeholder={`Nome do integrante #${index + 1}`}
-                        value={guest.name}
-                        onChange={(e) => {
-                          const updated = [...newGuestsList];
-                          updated[index].name = e.target.value;
-                          setNewGuestsList(updated);
-                        }}
-                        required
-                      />
-                      <label className="admin-checkbox-label" title="Marcar se for criança">
+                <div className="admin-form-group">
+                  <label className="admin-label">Integrantes da Família *</label>
+                  <div className="admin-dynamic-guests-list">
+                    {newGuestsList.map((guest, index) => (
+                      <div key={index} className="admin-guest-row-input">
                         <input
-                          type="checkbox"
-                          checked={guest.isChild}
+                          type="text"
+                          className="admin-input admin-input--guest-name"
+                          placeholder={`Nome do integrante #${index + 1}`}
+                          value={guest.name}
                           onChange={(e) => {
                             const updated = [...newGuestsList];
-                            updated[index].isChild = e.target.checked;
+                            updated[index].name = e.target.value;
                             setNewGuestsList(updated);
                           }}
+                          required
                         />
-                        <span>Criança</span>
-                      </label>
-                      {newGuestsList.length > 1 && (
-                        <button
-                          type="button"
-                          className="admin-btn-remove-row"
-                          onClick={() => {
-                            setNewGuestsList(newGuestsList.filter((_, idx) => idx !== index));
-                          }}
-                          title="Remover integrante"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        <label className="admin-checkbox-label" title="Marcar se for criança">
+                          <input
+                            type="checkbox"
+                            checked={guest.isChild}
+                            onChange={(e) => {
+                              const updated = [...newGuestsList];
+                              updated[index].isChild = e.target.checked;
+                              setNewGuestsList(updated);
+                            }}
+                          />
+                          <span>Criança</span>
+                        </label>
+                        {newGuestsList.length > 1 && (
+                          <button
+                            type="button"
+                            className="admin-btn-remove-row"
+                            onClick={() => {
+                              setNewGuestsList(newGuestsList.filter((_, idx) => idx !== index));
+                            }}
+                            title="Remover integrante"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-                <button
-                  type="button"
-                  className="admin-btn admin-btn--outline admin-btn--sm"
-                  style={{ marginTop: '0.65rem' }}
-                  onClick={() => setNewGuestsList([...newGuestsList, { name: '', isChild: false }])}
-                >
-                  <PlusIcon /> Adicionar outro integrante
-                </button>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--outline admin-btn--sm"
+                    style={{ marginTop: '0.65rem' }}
+                    onClick={() => setNewGuestsList([...newGuestsList, { name: '', isChild: false }])}
+                  >
+                    <PlusIcon /> Adicionar outro integrante
+                  </button>
+                </div>
               </div>
 
               <div className="admin-modal-footer">
