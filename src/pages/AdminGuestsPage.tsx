@@ -110,6 +110,22 @@ const DownloadIcon: React.FC = () => (
   </svg>
 );
 
+interface DraftGuestItem {
+  id: string;
+  name: string;
+  isChild: boolean;
+  rsvpStatus: 'PENDING' | 'CONFIRMED' | 'DECLINED';
+  isNew?: boolean;
+  tableName?: string | null;
+  checkIn?: { checkedInAt: string } | null;
+  dietaryRestrictions?: string | null;
+  original?: {
+    name: string;
+    isChild: boolean;
+    rsvpStatus: 'PENDING' | 'CONFIRMED' | 'DECLINED';
+  };
+}
+
 export const AdminGuestsPage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -159,6 +175,10 @@ export const AdminGuestsPage: React.FC = () => {
   const [regenerateInviteTarget, setRegenerateInviteTarget] = useState<AdminInviteItemDTO | AdminInviteDetailDTO | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
 
+  // Confirmação de Alterações Não Salvas
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+  const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null);
+
   // Modal de Importação CSV
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importStep, setImportStep] = useState<'UPLOAD' | 'PREVIEW' | 'SUCCESS'>('UPLOAD');
@@ -177,22 +197,14 @@ export const AdminGuestsPage: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
 
-  // Formulário de Adicionar Guest em Convite Existente
+  // Estado Local de Edição do Convite (Detail / Edit Modal)
+  const [editFamilyTitle, setEditFamilyTitle] = useState('');
+  const [initialFamilyTitle, setInitialFamilyTitle] = useState('');
+  const [draftGuests, setDraftGuests] = useState<DraftGuestItem[]>([]);
   const [addGuestName, setAddGuestName] = useState('');
   const [addGuestIsChild, setAddGuestIsChild] = useState(false);
-  const [isAddingGuest, setIsAddingGuest] = useState(false);
-
-  // Edição de Guest Existente
-  const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
-  const [editGuestName, setEditGuestName] = useState('');
-  const [editGuestIsChild, setEditGuestIsChild] = useState(false);
-  const [editGuestRsvpStatus, setEditGuestRsvpStatus] = useState<'PENDING' | 'CONFIRMED' | 'DECLINED'>('PENDING');
-  const [isSavingGuest, setIsSavingGuest] = useState(false);
-
-  // Edição de Título de Família
-  const [isEditingFamilyTitle, setIsEditingFamilyTitle] = useState(false);
-  const [editFamilyTitle, setEditFamilyTitle] = useState('');
-  const [isSavingFamilyTitle, setIsSavingFamilyTitle] = useState(false);
+  const [isSavingDetail, setIsSavingDetail] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const isPollingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -434,25 +446,113 @@ export const AdminGuestsPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchInvites, checkingAuth]);
 
-  // Fechar modais com tecla Escape
+  // Verificações de Alterações Não Salvas (Dirty state)
+  const isCreateDirty = useCallback(() => {
+    if (newFamilyTitle.trim().length > 0) return true;
+    if (newGuestsList.some((g) => g.name.trim().length > 0)) return true;
+    return false;
+  }, [newFamilyTitle, newGuestsList]);
+
+  const isDetailDirty = useCallback(() => {
+    if (!detailData) return false;
+    if (editFamilyTitle.trim() !== initialFamilyTitle.trim()) return true;
+    if (addGuestName.trim().length > 0) return true;
+    const hasGuestChanges = draftGuests.some((g) => {
+      if (g.isNew) return g.name.trim().length > 0;
+      if (!g.original) return false;
+      return (
+        g.name.trim() !== g.original.name.trim() ||
+        g.isChild !== g.original.isChild ||
+        g.rsvpStatus !== g.original.rsvpStatus
+      );
+    });
+    return hasGuestChanges;
+  }, [detailData, editFamilyTitle, initialFamilyTitle, addGuestName, draftGuests]);
+
+  // Fechamento Seguro de Modais com Confirmação
+  const handleRequestClose = useCallback(
+    (modalType: 'CREATE' | 'DETAIL' | 'IMPORT' | 'REGENERATE') => {
+      if (modalType === 'CREATE') {
+        if (isCreateDirty()) {
+          setPendingCloseAction(() => () => {
+            setIsCreateModalOpen(false);
+            setNewFamilyTitle('');
+            setNewGuestsList([{ name: '', isChild: false }]);
+            setCreateError(null);
+          });
+          setShowUnsavedConfirm(true);
+        } else {
+          setIsCreateModalOpen(false);
+          setNewFamilyTitle('');
+          setNewGuestsList([{ name: '', isChild: false }]);
+          setCreateError(null);
+        }
+      } else if (modalType === 'DETAIL') {
+        if (isDetailDirty()) {
+          setPendingCloseAction(() => () => {
+            setDetailInviteId(null);
+            setDetailData(null);
+            setDraftGuests([]);
+            setEditFamilyTitle('');
+            setInitialFamilyTitle('');
+            setAddGuestName('');
+            setAddGuestIsChild(false);
+            setDetailError(null);
+          });
+          setShowUnsavedConfirm(true);
+        } else {
+          setDetailInviteId(null);
+          setDetailData(null);
+          setDraftGuests([]);
+          setEditFamilyTitle('');
+          setInitialFamilyTitle('');
+          setAddGuestName('');
+          setAddGuestIsChild(false);
+          setDetailError(null);
+        }
+      } else if (modalType === 'IMPORT') {
+        if (importStep !== 'UPLOAD' || csvInputText.trim().length > 0) {
+          setPendingCloseAction(() => () => {
+            handleCloseImportModal();
+          });
+          setShowUnsavedConfirm(true);
+        } else {
+          handleCloseImportModal();
+        }
+      } else if (modalType === 'REGENERATE') {
+        setRegenerateInviteTarget(null);
+      }
+    },
+    [isCreateDirty, isDetailDirty, importStep, csvInputText]
+  );
+
+  // Fechar modais com tecla Escape respeitando confirmação
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (regenerateInviteTarget) {
-          setRegenerateInviteTarget(null);
+        if (showUnsavedConfirm) {
+          setShowUnsavedConfirm(false);
+        } else if (regenerateInviteTarget) {
+          handleRequestClose('REGENERATE');
         } else if (detailInviteId) {
-          setDetailInviteId(null);
-          setDetailData(null);
+          handleRequestClose('DETAIL');
         } else if (isCreateModalOpen) {
-          setIsCreateModalOpen(false);
+          handleRequestClose('CREATE');
         } else if (isImportModalOpen) {
-          handleCloseImportModal();
+          handleRequestClose('IMPORT');
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [regenerateInviteTarget, detailInviteId, isCreateModalOpen, isImportModalOpen]);
+  }, [
+    showUnsavedConfirm,
+    regenerateInviteTarget,
+    detailInviteId,
+    isCreateModalOpen,
+    isImportModalOpen,
+    handleRequestClose,
+  ]);
 
   // 3. Logout
   const handleLogout = async () => {
@@ -481,22 +581,42 @@ export const AdminGuestsPage: React.FC = () => {
   const handleOpenDetail = async (inviteId: string) => {
     setDetailInviteId(inviteId);
     setLoadingDetail(true);
-    setIsEditingFamilyTitle(false);
-    setEditingGuestId(null);
+    setDetailError(null);
     try {
       const res = await apiFetch(`/api/v1/admin/invites/${inviteId}`, {
         method: 'GET',
       });
       if (res.ok) {
         const data = await res.json();
-        setDetailData({
+        const dataWithStatus: AdminInviteDetailDTO = {
           ...data,
           consolidatedStatus: calculateConsolidatedInviteStatus(data.guests || []),
-        });
+        };
+        setDetailData(dataWithStatus);
         setEditFamilyTitle(data.familyTitle);
+        setInitialFamilyTitle(data.familyTitle);
+        const mappedDraft: DraftGuestItem[] = (data.guests || []).map((g: AdminGuestItemDTO) => ({
+          id: g.id,
+          name: g.name,
+          isChild: g.isChild,
+          rsvpStatus: (g.rsvp?.status as 'PENDING' | 'CONFIRMED' | 'DECLINED') || 'PENDING',
+          tableName: g.tableName,
+          checkIn: g.checkIn,
+          dietaryRestrictions: g.rsvp?.dietaryRestrictions || null,
+          original: {
+            name: g.name,
+            isChild: g.isChild,
+            rsvpStatus: (g.rsvp?.status as 'PENDING' | 'CONFIRMED' | 'DECLINED') || 'PENDING',
+          },
+        }));
+        setDraftGuests(mappedDraft);
+        setAddGuestName('');
+        setAddGuestIsChild(false);
+      } else {
+        showToast('Erro ao carregar detalhes do convite.');
       }
     } catch {
-      showToast('Erro ao carregar detalhes do convite.');
+      showToast('Erro de conexão ao carregar convite.');
     } finally {
       setLoadingDetail(false);
     }
@@ -530,7 +650,7 @@ export const AdminGuestsPage: React.FC = () => {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || 'Erro ao criar convite.');
       }
 
@@ -546,85 +666,153 @@ export const AdminGuestsPage: React.FC = () => {
     }
   };
 
-  // 7. Salvar Título da Família
-  const handleSaveFamilyTitle = async () => {
-    if (!detailData || !editFamilyTitle.trim()) return;
-    setIsSavingFamilyTitle(true);
-    try {
-      const res = await apiFetch(`/api/v1/admin/invites/${detailData.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ familyTitle: editFamilyTitle.trim() }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setDetailData({
-          ...updated,
-          consolidatedStatus: calculateConsolidatedInviteStatus(updated.guests || []),
-        });
-        setIsEditingFamilyTitle(false);
-        showToast('Título da família atualizado! ✨');
-        fetchInvites(true);
-      }
-    } catch {
-      showToast('Erro ao atualizar título.');
-    } finally {
-      setIsSavingFamilyTitle(false);
-    }
-  };
-
-  // 8. Adicionar Guest em Convite Existente
-  const handleAddGuest = async (e: React.FormEvent) => {
+  // 7. Adicionar Convidado ao Rascunho Local
+  const handleAddDraftGuest = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!detailData || !addGuestName.trim()) return;
-    setIsAddingGuest(true);
-    try {
-      const res = await apiFetch(`/api/v1/admin/invites/${detailData.id}/guests`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: addGuestName.trim(),
-          isChild: addGuestIsChild,
-        }),
-      });
-      if (res.ok) {
-        setAddGuestName('');
-        setAddGuestIsChild(false);
-        showToast('Convidado adicionado à família! 👤');
-        handleOpenDetail(detailData.id);
-        fetchInvites(true);
-      }
-    } catch {
-      showToast('Erro ao adicionar convidado.');
-    } finally {
-      setIsAddingGuest(false);
-    }
+    if (!addGuestName.trim()) return;
+    const newGuest: DraftGuestItem = {
+      id: `temp-${Date.now()}-${Math.random()}`,
+      name: addGuestName.trim(),
+      isChild: addGuestIsChild,
+      rsvpStatus: 'PENDING',
+      isNew: true,
+    };
+    setDraftGuests((prev) => [...prev, newGuest]);
+    setAddGuestName('');
+    setAddGuestIsChild(false);
+    setDetailError(null);
   };
 
-  // 9. Salvar Edição de Guest
-  const handleSaveGuest = async (guestId: string) => {
-    if (!editGuestName.trim()) return;
-    setIsSavingGuest(true);
-    try {
-      const res = await apiFetch(`/api/v1/admin/guests/${guestId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editGuestName.trim(),
-          isChild: editGuestIsChild,
-          rsvpStatus: editGuestRsvpStatus,
-        }),
-      });
-      if (res.ok) {
-        setEditingGuestId(null);
-        showToast('Dados do convidado atualizados! ✅');
-        if (detailInviteId) handleOpenDetail(detailInviteId);
-        fetchInvites(true);
+  // 8. Remover Convidado Novo do Rascunho Local
+  const handleRemoveDraftGuest = (guestId: string) => {
+    setDraftGuests((prev) => prev.filter((g) => g.id !== guestId));
+  };
+
+  // 9. Salvar Todas as Alterações do Convite (Persistência Consistente)
+  const handleSaveDetailChanges = async () => {
+    if (!detailData) return;
+    if (!editFamilyTitle.trim()) {
+      setDetailError('O título da família/convite é obrigatório.');
+      return;
+    }
+
+    // Validar se todos os convidados têm nome
+    for (const g of draftGuests) {
+      if (!g.name.trim()) {
+        setDetailError('Todos os integrantes na lista precisam ter um nome preenchido.');
+        return;
       }
-    } catch {
-      showToast('Erro ao atualizar convidado.');
+    }
+
+    setIsSavingDetail(true);
+    setDetailError(null);
+
+    try {
+      const promises: Promise<any>[] = [];
+
+      // 1. Título da Família alterado
+      if (editFamilyTitle.trim() !== initialFamilyTitle.trim()) {
+        promises.push(
+          apiFetch(`/api/v1/admin/invites/${detailData.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ familyTitle: editFamilyTitle.trim() }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.error || 'Erro ao atualizar o título do convite.');
+            }
+          })
+        );
+      }
+
+      // 2. Convidados existentes modificados
+      for (const guest of draftGuests) {
+        if (!guest.isNew && guest.original) {
+          const isNameChanged = guest.name.trim() !== guest.original.name.trim();
+          const isChildChanged = guest.isChild !== guest.original.isChild;
+          const isRsvpChanged = guest.rsvpStatus !== guest.original.rsvpStatus;
+
+          if (isNameChanged || isChildChanged || isRsvpChanged) {
+            promises.push(
+              apiFetch(`/api/v1/admin/guests/${guest.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  name: guest.name.trim(),
+                  isChild: guest.isChild,
+                  rsvpStatus: guest.rsvpStatus,
+                }),
+              }).then(async (res) => {
+                if (!res.ok) {
+                  const err = await res.json().catch(() => ({}));
+                  throw new Error(err.error || `Erro ao atualizar integrante ${guest.name}.`);
+                }
+              })
+            );
+          }
+        }
+      }
+
+      // 3. Novos convidados adicionados
+      for (const newGuest of draftGuests) {
+        if (newGuest.isNew && newGuest.name.trim()) {
+          promises.push(
+            apiFetch(`/api/v1/admin/invites/${detailData.id}/guests`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: newGuest.name.trim(),
+                isChild: newGuest.isChild,
+              }),
+            }).then(async (res) => {
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `Erro ao adicionar integrante ${newGuest.name}.`);
+              }
+              const created = await res.json().catch(() => null);
+              if (created && created.id && newGuest.rsvpStatus !== 'PENDING') {
+                await apiFetch(`/api/v1/admin/guests/${created.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ rsvpStatus: newGuest.rsvpStatus }),
+                });
+              }
+            })
+          );
+        }
+      }
+
+      // 4. Se o usuário digitou nome no formulário rápido de adicionar e não clicou em "+", salvar também
+      if (addGuestName.trim()) {
+        promises.push(
+          apiFetch(`/api/v1/admin/invites/${detailData.id}/guests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: addGuestName.trim(),
+              isChild: addGuestIsChild,
+            }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.error || `Erro ao adicionar ${addGuestName}.`);
+            }
+          })
+        );
+      }
+
+      await Promise.all(promises);
+
+      showToast('Alterações salvas com sucesso! ✨');
+      setAddGuestName('');
+      setAddGuestIsChild(false);
+      await handleOpenDetail(detailData.id);
+      fetchInvites(true);
+    } catch (err: unknown) {
+      setDetailError(err instanceof Error ? err.message : 'Erro ao persistir alterações.');
     } finally {
-      setIsSavingGuest(false);
+      setIsSavingDetail(false);
     }
   };
 
@@ -1215,9 +1403,6 @@ export const AdminGuestsPage: React.FC = () => {
           className="admin-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setIsCreateModalOpen(false);
-          }}
         >
           <div className="admin-modal admin-modal--guests">
             <div className="admin-modal-header">
@@ -1228,7 +1413,7 @@ export const AdminGuestsPage: React.FC = () => {
               <button
                 type="button"
                 className="admin-modal-close"
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => handleRequestClose('CREATE')}
                 aria-label="Fechar"
               >
                 ✕
@@ -1319,13 +1504,17 @@ export const AdminGuestsPage: React.FC = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn--outline"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  onClick={() => handleRequestClose('CREATE')}
                   disabled={isSubmittingCreate}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="admin-btn admin-btn--primary" disabled={isSubmittingCreate}>
-                  {isSubmittingCreate ? 'Criando convite...' : 'Salvar e Gerar Link'}
+                <button
+                  type="submit"
+                  className="admin-btn admin-btn--primary"
+                  disabled={isSubmittingCreate || !newFamilyTitle.trim() || newGuestsList.every((g) => !g.name.trim())}
+                >
+                  {isSubmittingCreate ? 'Criando convite...' : 'Criar convite'}
                 </button>
               </div>
             </form>
@@ -1341,26 +1530,17 @@ export const AdminGuestsPage: React.FC = () => {
           className="admin-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setDetailInviteId(null);
-              setDetailData(null);
-            }
-          }}
         >
           <div className="admin-modal admin-modal--guests">
             <div className="admin-modal-header">
               <div>
                 <h2 className="admin-modal-title">Detalhes do Convite</h2>
-                <span className="admin-modal-meta">Gestão dos integrantes e link individual</span>
+                <span className="admin-modal-meta">Edição de dados da família, integrantes e link individual</span>
               </div>
               <button
                 type="button"
                 className="admin-modal-close"
-                onClick={() => {
-                  setDetailInviteId(null);
-                  setDetailData(null);
-                }}
+                onClick={() => handleRequestClose('DETAIL')}
                 aria-label="Fechar"
               >
                 ✕
@@ -1375,51 +1555,29 @@ export const AdminGuestsPage: React.FC = () => {
                 </div>
               ) : (
                 <>
+                  {detailError && (
+                    <div className="admin-alert admin-alert--error" role="alert">
+                      {detailError}
+                    </div>
+                  )}
+
                   {/* Título da Família */}
                   <div className="admin-detail-section">
-                    <div className="admin-detail-header-row">
-                      <span className="admin-detail-label">Título da Família</span>
-                      {!isEditingFamilyTitle && (
-                        <button
-                          type="button"
-                          className="admin-btn-link"
-                          onClick={() => {
-                            setEditFamilyTitle(detailData.familyTitle);
-                            setIsEditingFamilyTitle(true);
-                          }}
-                        >
-                          Editar Título
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditingFamilyTitle ? (
-                      <div className="admin-inline-edit-row">
-                        <input
-                          type="text"
-                          className="admin-input"
-                          value={editFamilyTitle}
-                          onChange={(e) => setEditFamilyTitle(e.target.value)}
-                        />
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--sm admin-btn--primary"
-                          onClick={handleSaveFamilyTitle}
-                          disabled={isSavingFamilyTitle}
-                        >
-                          Salvar
-                        </button>
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn--sm admin-btn--outline"
-                          onClick={() => setIsEditingFamilyTitle(false)}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <h3 className="admin-detail-family-title">{detailData.familyTitle}</h3>
-                    )}
+                    <label htmlFor="detailFamilyTitle" className="admin-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                      Título da Família / Convite *
+                    </label>
+                    <input
+                      id="detailFamilyTitle"
+                      type="text"
+                      className="admin-input"
+                      value={editFamilyTitle}
+                      onChange={(e) => setEditFamilyTitle(e.target.value)}
+                      placeholder="Nome da família ou do convidado principal"
+                      required
+                    />
+                    <span className="admin-field-hint">
+                      Exibido no cabeçalho do convite digital e na mensagem de WhatsApp.
+                    </span>
                   </div>
 
                   {/* Link Privado de Acesso & WhatsApp */}
@@ -1438,7 +1596,7 @@ export const AdminGuestsPage: React.FC = () => {
                         <button
                           type="button"
                           className={`admin-btn admin-btn--sm admin-btn-whatsapp ${copiedWhatsAppId === detailData.id ? 'admin-btn-whatsapp--copied' : ''}`}
-                          onClick={() => handleCopyWhatsApp(detailData.familyTitle, detailData.token, detailData.id)}
+                          onClick={() => handleCopyWhatsApp(editFamilyTitle || detailData.familyTitle, detailData.token, detailData.id)}
                           title="Copiar mensagem personalizada com link para WhatsApp"
                         >
                           <WhatsAppIcon /> {copiedWhatsAppId === detailData.id ? 'Mensagem Copiada!' : 'Copiar Mensagem para WhatsApp'}
@@ -1449,119 +1607,134 @@ export const AdminGuestsPage: React.FC = () => {
 
                   {/* Lista de Integrantes */}
                   <div className="admin-detail-section">
-                    <div className="admin-detail-header-row">
-                      <span className="admin-detail-label">Integrantes Cadastrados ({detailData.guests.length})</span>
-                      {renderStatusBadge(detailData.consolidatedStatus)}
+                    <div className="admin-detail-header-row" style={{ marginBottom: '0.5rem' }}>
+                      <span className="admin-detail-label">
+                        Integrantes da Família ({draftGuests.length})
+                      </span>
+                      {renderStatusBadge(
+                        calculateConsolidatedInviteStatus(
+                          draftGuests.map((g) => ({ rsvpStatus: g.rsvpStatus }))
+                        )
+                      )}
                     </div>
 
-                    <div className="admin-guests-detail-list">
-                      {detailData.guests.map((guest: AdminGuestItemDTO) => (
-                        <div key={guest.id} className="admin-guest-detail-row">
-                          {editingGuestId === guest.id ? (
-                            <div className="admin-inline-edit-guest" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.7)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(107, 92, 87, 0.15)' }}>
-                              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap', width: '100%' }}>
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label className="admin-label" style={{ fontSize: '0.8rem', marginBottom: '0.35rem', display: 'block' }}>
-                                    Nome do convidado
-                                  </label>
-                                  <input
-                                    type="text"
-                                    className="admin-input"
-                                    value={editGuestName}
-                                    onChange={(e) => setEditGuestName(e.target.value)}
-                                    placeholder="Nome do integrante"
-                                  />
-                                </div>
-
-                                <div style={{ flex: '1 1 200px' }}>
-                                  <label className="admin-label" style={{ fontSize: '0.8rem', marginBottom: '0.35rem', display: 'block' }}>
-                                    Confirmação de presença
-                                  </label>
-                                  <select
-                                    className="admin-input admin-select-filter"
-                                    value={editGuestRsvpStatus}
-                                    onChange={(e) => setEditGuestRsvpStatus(e.target.value as 'PENDING' | 'CONFIRMED' | 'DECLINED')}
-                                    style={{ minHeight: '48px', width: '100%' }}
-                                  >
-                                    <option value="PENDING">Pendente</option>
-                                    <option value="CONFIRMED">Confirmado</option>
-                                    <option value="DECLINED">Não poderá comparecer</option>
-                                  </select>
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', marginTop: '1.75rem' }}>
-                                  <label className="admin-checkbox-label">
-                                    <input
-                                      type="checkbox"
-                                      checked={editGuestIsChild}
-                                      onChange={(e) => setEditGuestIsChild(e.target.checked)}
-                                    />
-                                    <span>Criança</span>
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="admin-inline-edit-actions" style={{ justifyContent: 'flex-end' }}>
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn--sm admin-btn--primary"
-                                  onClick={() => handleSaveGuest(guest.id)}
-                                  disabled={isSavingGuest}
-                                >
-                                  {isSavingGuest ? 'Salvando...' : 'Salvar'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="admin-btn admin-btn--sm admin-btn--outline"
-                                  onClick={() => setEditingGuestId(null)}
-                                  disabled={isSavingGuest}
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="admin-guest-info">
-                                <strong className="admin-guest-name">
-                                  {guest.isChild && '👶 '}
-                                  {guest.name}
-                                </strong>
-                                <div className="admin-guest-subtags">
-                                  {renderGuestRsvpBadge(guest.rsvp?.status || 'PENDING')}
-                                  {guest.tableName && (
-                                    <span className="admin-tag-sub">🪑 {guest.tableName}</span>
-                                  )}
-                                  {guest.checkIn && (
-                                    <span className="admin-tag-sub admin-tag-sub--present">✓ Check-in realizado</span>
-                                  )}
-                                  {guest.rsvp?.dietaryRestrictions && (
-                                    <span className="admin-tag-sub admin-tag-sub--dietary" title={guest.rsvp.dietaryRestrictions}>
-                                      🍽️ {guest.rsvp.dietaryRestrictions}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="admin-btn admin-btn--sm admin-btn--outline"
-                                onClick={() => {
-                                  setEditingGuestId(guest.id);
-                                  setEditGuestName(guest.name);
-                                  setEditGuestIsChild(guest.isChild);
-                                  setEditGuestRsvpStatus(guest.rsvp?.status || 'PENDING');
-                                }}
+                    <div className="admin-guests-detail-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {draftGuests.map((guest, index) => (
+                        <div
+                          key={guest.id}
+                          className="admin-guest-detail-row"
+                          style={{
+                            flexDirection: 'column',
+                            alignItems: 'stretch',
+                            gap: '0.5rem',
+                            padding: '0.75rem',
+                            background: guest.isNew ? '#fffdf7' : 'rgba(255, 255, 255, 0.7)',
+                            border: guest.isNew ? '1px dashed #d97706' : '1px solid rgba(107, 92, 87, 0.15)',
+                            borderRadius: 'var(--radius-sm)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
+                            {/* Nome */}
+                            <div style={{ flex: '1 1 200px' }}>
+                              <label
+                                className="admin-label"
+                                style={{ fontSize: '0.75rem', marginBottom: '0.2rem', display: 'block', color: 'var(--color-text-muted)' }}
                               >
-                                Editar
-                              </button>
-                            </>
-                          )}
+                                Nome do integrante #{index + 1}
+                              </label>
+                              <input
+                                type="text"
+                                className="admin-input"
+                                value={guest.name}
+                                onChange={(e) => {
+                                  const updated = [...draftGuests];
+                                  updated[index] = { ...updated[index], name: e.target.value };
+                                  setDraftGuests(updated);
+                                }}
+                                placeholder="Nome do integrante"
+                                required
+                              />
+                            </div>
+
+                            {/* RSVP Status */}
+                            <div style={{ flex: '1 1 170px' }}>
+                              <label
+                                className="admin-label"
+                                style={{ fontSize: '0.75rem', marginBottom: '0.2rem', display: 'block', color: 'var(--color-text-muted)' }}
+                              >
+                                Confirmação de Presença
+                              </label>
+                              <select
+                                className="admin-input admin-select-filter"
+                                value={guest.rsvpStatus}
+                                onChange={(e) => {
+                                  const updated = [...draftGuests];
+                                  updated[index] = {
+                                    ...updated[index],
+                                    rsvpStatus: e.target.value as 'PENDING' | 'CONFIRMED' | 'DECLINED',
+                                  };
+                                  setDraftGuests(updated);
+                                }}
+                                style={{ minHeight: '48px', width: '100%' }}
+                              >
+                                <option value="PENDING">Pendente</option>
+                                <option value="CONFIRMED">Confirmado</option>
+                                <option value="DECLINED">Não comparecerá</option>
+                              </select>
+                            </div>
+
+                            {/* Criança & Remoção se for novo */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.25rem' }}>
+                              <label className="admin-checkbox-label" title="Marcar se for criança">
+                                <input
+                                  type="checkbox"
+                                  checked={guest.isChild}
+                                  onChange={(e) => {
+                                    const updated = [...draftGuests];
+                                    updated[index] = { ...updated[index], isChild: e.target.checked };
+                                    setDraftGuests(updated);
+                                  }}
+                                />
+                                <span>Criança</span>
+                              </label>
+
+                              {guest.isNew && (
+                                <button
+                                  type="button"
+                                  className="admin-btn-remove-row"
+                                  onClick={() => handleRemoveDraftGuest(guest.id)}
+                                  title="Remover novo integrante não salvo"
+                                  style={{ marginLeft: '0.25rem' }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Subtags informativas */}
+                          <div className="admin-guest-subtags" style={{ marginTop: '0.2rem', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            {guest.isNew ? (
+                              <span className="admin-badge admin-badge--staging" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
+                                Novo (não salvo)
+                              </span>
+                            ) : (
+                              renderGuestRsvpBadge(guest.rsvpStatus)
+                            )}
+                            {guest.tableName && <span className="admin-tag-sub">🪑 Mesa: {guest.tableName}</span>}
+                            {guest.checkIn && <span className="admin-tag-sub admin-tag-sub--present">✓ Check-in realizado</span>}
+                            {guest.dietaryRestrictions && (
+                              <span className="admin-tag-sub admin-tag-sub--dietary" title={guest.dietaryRestrictions}>
+                                🍽️ {guest.dietaryRestrictions}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
 
-                    {/* Adicionar Novo Membro ao Convite */}
-                    <form onSubmit={handleAddGuest} className="admin-add-guest-form">
+                    {/* Adicionar Novo Membro ao Rascunho */}
+                    <form onSubmit={handleAddDraftGuest} className="admin-add-guest-form" style={{ marginTop: '1rem' }}>
                       <h4 className="admin-add-guest-title">+ Adicionar Convidado à Família</h4>
                       <div className="admin-add-guest-inputs">
                         <input
@@ -1570,7 +1743,6 @@ export const AdminGuestsPage: React.FC = () => {
                           placeholder="Nome do novo integrante"
                           value={addGuestName}
                           onChange={(e) => setAddGuestName(e.target.value)}
-                          required
                         />
                         <label className="admin-checkbox-label">
                           <input
@@ -1582,10 +1754,10 @@ export const AdminGuestsPage: React.FC = () => {
                         </label>
                         <button
                           type="submit"
-                          className="admin-btn admin-btn--sm admin-btn--primary"
-                          disabled={isAddingGuest || !addGuestName.trim()}
+                          className="admin-btn admin-btn--sm admin-btn--outline"
+                          disabled={!addGuestName.trim()}
                         >
-                          {isAddingGuest ? 'Adicionando...' : 'Adicionar'}
+                          + Adicionar à lista
                         </button>
                       </div>
                     </form>
@@ -1595,24 +1767,36 @@ export const AdminGuestsPage: React.FC = () => {
             </div>
 
             <div className="admin-modal-footer">
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline"
+                  onClick={() => handleRequestClose('DETAIL')}
+                  disabled={isSavingDetail}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline-danger"
+                  onClick={() => {
+                    if (detailData) setRegenerateInviteTarget(detailData);
+                  }}
+                  disabled={isSavingDetail}
+                  title="Regenerar link exclusivo deste convite"
+                >
+                  <KeyIcon /> Regenerar Link
+                </button>
+              </div>
+
               <button
                 type="button"
-                className="admin-btn admin-btn--outline-danger"
-                onClick={() => {
-                  if (detailData) setRegenerateInviteTarget(detailData);
-                }}
+                className="admin-btn admin-btn--primary"
+                onClick={handleSaveDetailChanges}
+                disabled={isSavingDetail || !isDetailDirty() || !editFamilyTitle.trim()}
+                title={!isDetailDirty() ? 'Nenhuma alteração pendente' : 'Salvar todas as alterações do convite'}
               >
-                <KeyIcon /> Regenerar Link de Acesso
-              </button>
-              <button
-                type="button"
-                className="admin-btn admin-btn--outline"
-                onClick={() => {
-                  setDetailInviteId(null);
-                  setDetailData(null);
-                }}
-              >
-                Fechar
+                {isSavingDetail ? 'Salvando alterações...' : 'Salvar alterações'}
               </button>
             </div>
           </div>
@@ -1627,9 +1811,6 @@ export const AdminGuestsPage: React.FC = () => {
           className="admin-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setRegenerateInviteTarget(null);
-          }}
         >
           <div className="admin-modal admin-modal--confirm">
             <div className="admin-modal-header">
@@ -1640,7 +1821,7 @@ export const AdminGuestsPage: React.FC = () => {
               <button
                 type="button"
                 className="admin-modal-close"
-                onClick={() => setRegenerateInviteTarget(null)}
+                onClick={() => handleRequestClose('REGENERATE')}
                 aria-label="Fechar"
               >
                 ✕
@@ -1665,7 +1846,7 @@ export const AdminGuestsPage: React.FC = () => {
               <button
                 type="button"
                 className="admin-btn admin-btn--outline"
-                onClick={() => setRegenerateInviteTarget(null)}
+                onClick={() => handleRequestClose('REGENERATE')}
                 disabled={isRegenerating}
               >
                 Cancelar
@@ -1691,9 +1872,6 @@ export const AdminGuestsPage: React.FC = () => {
           className="admin-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleCloseImportModal();
-          }}
         >
           <div className="admin-modal admin-modal--import">
             <div className="admin-modal-header">
@@ -1708,7 +1886,7 @@ export const AdminGuestsPage: React.FC = () => {
               <button
                 type="button"
                 className="admin-modal-close"
-                onClick={handleCloseImportModal}
+                onClick={() => handleRequestClose('IMPORT')}
                 aria-label="Fechar"
               >
                 ✕
@@ -1899,7 +2077,7 @@ export const AdminGuestsPage: React.FC = () => {
                   <button
                     type="button"
                     className="admin-btn admin-btn--outline"
-                    onClick={handleCloseImportModal}
+                    onClick={() => handleRequestClose('IMPORT')}
                     disabled={isAnalyzingCsv}
                   >
                     Cancelar
@@ -1941,11 +2119,72 @@ export const AdminGuestsPage: React.FC = () => {
                 <button
                   type="button"
                   className="admin-btn admin-btn--primary"
-                  onClick={handleCloseImportModal}
+                  onClick={() => handleRequestClose('IMPORT')}
                 >
                   Concluir e Ver Lista de Convidados
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          9. MODAL: CONFIRMAÇÃO DE ALTERAÇÕES NÃO SALVAS
+          ══════════════════════════════════════════════════════ */}
+      {showUnsavedConfirm && (
+        <div
+          className="admin-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          style={{ zIndex: 1100 }}
+        >
+          <div className="admin-modal admin-modal--confirm animate-slide-up">
+            <div className="admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: '#d97706' }}><AlertTriangleIcon /></span>
+                <h2 className="admin-modal-title">Alterações não salvas</h2>
+              </div>
+              <button
+                type="button"
+                className="admin-modal-close"
+                onClick={() => setShowUnsavedConfirm(false)}
+                aria-label="Fechar confirmação"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="admin-modal-body">
+              <p className="admin-confirm-text">
+                Existem alterações não salvas. Deseja sair mesmo assim?
+              </p>
+              <p style={{ margin: '0.4rem 0 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
+                Se você sair agora, todas as edições preenchidas nesta janela serão perdidas.
+              </p>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                className="admin-btn admin-btn--outline"
+                onClick={() => setShowUnsavedConfirm(false)}
+              >
+                Continuar editando
+              </button>
+              <button
+                type="button"
+                className="admin-btn admin-btn--outline-danger"
+                onClick={() => {
+                  setShowUnsavedConfirm(false);
+                  if (pendingCloseAction) {
+                    pendingCloseAction();
+                    setPendingCloseAction(null);
+                  }
+                }}
+              >
+                Descartar e sair
+              </button>
             </div>
           </div>
         </div>

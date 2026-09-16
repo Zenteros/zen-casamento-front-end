@@ -4196,9 +4196,9 @@ html, body {
 }
 
 .admin-header__container {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0.85rem 1.25rem;
+  padding: 0.85rem clamp(1rem, 2vw, 2rem);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -4299,10 +4299,10 @@ html, body {
 
 /* ─── 3. Conteúdo Principal ─── */
 .admin-main {
-  max-width: 1200px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 1.25rem 1rem 3rem;
+  padding: 1.25rem clamp(1rem, 2vw, 2rem) 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -5241,8 +5241,9 @@ html, body {
 }
 
 .admin-subnav__container {
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
+  padding: 0 clamp(1rem, 2vw, 2rem);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -6115,12 +6116,14 @@ html, body {
   border: 1px solid rgba(107, 92, 87, 0.12);
   border-radius: var(--radius-md);
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 2px 8px rgba(45, 36, 34, 0.03);
   width: 100%;
 }
 
 .admin-table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.88rem;
@@ -6163,42 +6166,42 @@ html, body {
 }
 
 .admin-col-family {
-  width: 25%;
-  min-width: 180px;
+  width: 22%;
+  min-width: 170px;
 }
 
 .admin-col-guests {
-  width: 22%;
-  min-width: 160px;
+  width: 23%;
+  min-width: 180px;
 }
 
 .admin-col-status {
-  width: 10%;
-  min-width: 95px;
+  width: 11%;
+  min-width: 115px;
   white-space: nowrap;
 }
 
 .admin-col-table {
   width: 9%;
-  min-width: 85px;
+  min-width: 90px;
   white-space: nowrap;
 }
 
 .admin-col-presence {
   width: 11%;
-  min-width: 120px;
+  min-width: 115px;
   white-space: nowrap;
 }
 
 .admin-col-link {
   width: 14%;
-  min-width: 165px;
+  min-width: 225px;
   white-space: nowrap;
 }
 
 .admin-col-actions {
-  width: 9%;
-  min-width: 85px;
+  width: 10%;
+  min-width: 115px;
   white-space: nowrap;
   text-align: right;
 }
@@ -6485,7 +6488,7 @@ html, body {
 }
 
 .admin-modal--guests {
-  max-width: 680px;
+  max-width: 760px;
 }
 
 .admin-modal--confirm,
