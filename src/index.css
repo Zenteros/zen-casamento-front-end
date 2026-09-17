@@ -1632,12 +1632,12 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────
-   GIFT PIX SECTION — EDITORIAL & DISCRETO
+   GIFT PIX SECTION — EDITORIAL, COMPACTO & DISCRETO
    ───────────────────────────────────────────── */
 .gift-pix-section {
   background-color: var(--color-cream-bg);
-  padding-top: clamp(3rem, 6vh, 4.5rem);
-  padding-bottom: clamp(3rem, 6vh, 4.5rem);
+  padding-top: clamp(2rem, 4vh, 3rem);
+  padding-bottom: clamp(2rem, 4vh, 3rem);
 }
 
 .gift-pix-inner {
@@ -1657,52 +1657,111 @@ html, body {
 }
 
 .gift-pix-icon-wrap {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background-color: var(--color-rose-soft);
+  background-color: var(--color-terracotta-light);
   color: var(--color-terracotta);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.25rem;
-  border: 1px solid var(--color-border-subtle);
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(200, 109, 81, 0.18);
 }
 
 .gift-pix-icon-wrap svg {
   flex-shrink: 0;
 }
 
-.gift-pix-title {
-  margin-bottom: 1.25rem;
-  font-size: clamp(1.8rem, 3.8vw, 2.5rem);
+.gift-pix-eyebrow {
+  margin-bottom: 0.35rem;
 }
 
-.gift-pix-text {
+.gift-pix-intro {
   font-family: var(--font-sans);
-  font-size: clamp(0.9rem, 1.6vw, 1rem);
+  font-size: clamp(0.9rem, 1.5vw, 0.975rem);
   color: var(--color-text-muted);
-  line-height: 1.7;
-  max-width: 480px;
-  margin: 0 auto 2rem;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 440px;
+}
+
+.gift-pix-toggle-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.gift-pix-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1.6rem;
+  min-height: 48px;
+  border-radius: 50px;
+  border: 1px solid var(--color-border);
+  background-color: var(--paper-warm);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(200, 109, 81, 0.05);
+  user-select: none;
+}
+
+.gift-pix-toggle-btn:hover {
+  border-color: var(--color-terracotta);
+  background-color: var(--color-terracotta-light);
+  color: var(--color-terracotta-dark);
+  transform: translateY(-1px);
+}
+
+.gift-pix-toggle-btn--active {
+  background-color: var(--color-terracotta-light);
+  border-color: var(--color-terracotta);
+  color: var(--color-terracotta-dark);
+}
+
+.gift-pix-toggle-btn svg {
+  flex-shrink: 0;
+}
+
+.gift-pix-content {
+  width: 100%;
+  overflow: hidden;
+  transition: all 0.35s ease;
 }
 
 .gift-pix-card {
+  margin-top: 1.75rem;
+  padding: clamp(1.5rem, 3.5vw, 2.25rem);
   background-color: #ffffff;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: clamp(1.5rem, 3.5vw, 2rem);
-  width: 100%;
-  max-width: 440px;
   box-shadow: var(--shadow-card);
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.15rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gift-pix-card-title {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+}
+
+.gift-pix-card-text {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  max-width: 440px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .gift-pix-badge {
@@ -1732,15 +1791,15 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem 0;
+  margin: 0.75rem 0 1.25rem;
 }
 
 .gift-pix-key-display {
   font-family: var(--font-sans);
-  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-size: clamp(1.25rem, 2.8vw, 1.5rem);
   font-weight: 600;
   color: var(--color-text-main);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .gift-pix-action-wrap {
@@ -1755,7 +1814,7 @@ html, body {
   justify-content: center;
   gap: 0.6rem;
   width: 100%;
-  max-width: 320px;
+  max-width: 300px;
   min-height: 48px;
   padding: 0.75rem 1.5rem;
   background-color: var(--paper-warm);
@@ -1809,9 +1868,9 @@ html, body {
 .gift-pix-signature {
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+  font-size: clamp(1rem, 1.8vw, 1.15rem);
   color: var(--color-text-muted);
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   text-align: center;
 }
 

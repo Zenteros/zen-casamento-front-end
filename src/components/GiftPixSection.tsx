@@ -4,14 +4,14 @@ import { PIX_CONFIG, PIX_KEY } from '../domain/index.js';
 /* ──────────────────────────────────────────────
    SVG Icons
    ────────────────────────────────────────────── */
-const GiftIcon: React.FC = () => (
+const GiftIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
   <svg
-    width="24"
-    height="24"
+    width={size}
+    height={size}
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.5"
+    strokeWidth="1.75"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"
@@ -21,6 +21,27 @@ const GiftIcon: React.FC = () => (
     <line x1="12" y1="22" x2="12" y2="7" />
     <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
     <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+  </svg>
+);
+
+const ChevronDownIcon: React.FC<{ rotated?: boolean }> = ({ rotated }) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    style={{
+      transform: rotated ? 'rotate(180deg)' : 'rotate(0deg)',
+      transition: 'transform 0.3s ease',
+      flexShrink: 0,
+    }}
+  >
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 
@@ -61,6 +82,7 @@ const CheckIcon: React.FC = () => (
    GiftPixSection Component
    ────────────────────────────────────────────── */
 export const GiftPixSection: React.FC = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,6 +93,10 @@ export const GiftPixSection: React.FC = () => {
       }
     };
   }, []);
+
+  const toggleExpanded = () => {
+    setIsExpanded((prev) => !prev);
+  };
 
   const handleCopy = async () => {
     let success = false;
@@ -121,67 +147,97 @@ export const GiftPixSection: React.FC = () => {
     <section
       className="editorial-section gift-pix-section animate-fade-in"
       id="presente"
-      aria-labelledby="gift-pix-heading"
+      aria-labelledby="gift-pix-eyebrow"
     >
       <div className="gift-pix-inner">
-        {/* Cabeçalho Editorial com Ícone Discreto */}
+        {/* Bloco Inicial Compacto e Discreto */}
         <div className="gift-pix-header">
           <div className="gift-pix-icon-wrap" aria-hidden="true">
-            <GiftIcon />
+            <GiftIcon size={18} />
           </div>
 
-          <span className="editorial-eyebrow">Presente aos Noivos</span>
+          <span id="gift-pix-eyebrow" className="editorial-eyebrow gift-pix-eyebrow">
+            Presente aos noivos
+          </span>
 
-          <h2 id="gift-pix-heading" className="editorial-title gift-pix-title">
-            Um carinho, se você desejar
-          </h2>
-
-          <div className="gift-pix-text">
-            <p>Sua presença é o nosso maior presente.</p>
-            <p>
-              Mas, se desejar nos agraciar de alguma forma, disponibilizamos uma opção de presente via Pix.
-            </p>
-          </div>
+          <p className="gift-pix-intro">
+            Sua presença é o nosso maior presente.
+          </p>
         </div>
 
-        {/* Card Suave com Chave e Ação */}
-        <div className="gift-pix-card">
-          <div className="gift-pix-badge">
-            <span className="gift-pix-badge__dot" aria-hidden="true" />
-            <span>Pix &bull; {PIX_CONFIG.keyType}</span>
-          </div>
-
-          <div className="gift-pix-key-wrap">
-            <span className="gift-pix-key-display">{PIX_CONFIG.displayKey}</span>
-          </div>
-
-          <div className="gift-pix-action-wrap">
-            <button
-              type="button"
-              className={`gift-pix-copy-btn ${copied ? 'gift-pix-copy-btn--copied' : ''}`}
-              onClick={handleCopy}
-              aria-label={copied ? 'Chave Pix copiada: 48991567999' : 'Copiar chave Pix 48991567999'}
-              aria-live="polite"
-            >
-              {copied ? (
-                <>
-                  <CheckIcon />
-                  <span>Chave copiada ✓</span>
-                </>
-              ) : (
-                <>
-                  <CopyIcon />
-                  <span>Copiar chave Pix</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* Botão de Expansão (Padrão UX consistente com a seção de Hospedagem) */}
+        <div className="gift-pix-toggle-wrap">
+          <button
+            type="button"
+            className={`gift-pix-toggle-btn ${isExpanded ? 'gift-pix-toggle-btn--active' : ''}`}
+            onClick={toggleExpanded}
+            aria-expanded={isExpanded}
+            aria-controls="gift-pix-details"
+          >
+            <GiftIcon size={18} />
+            <span>{isExpanded ? 'Ocultar opção de presente' : 'Ver opção de presente'}</span>
+            <ChevronDownIcon rotated={isExpanded} />
+          </button>
         </div>
 
-        {/* Assinatura Afetiva */}
-        <p className="gift-pix-signature">
-          Com carinho, Patrício &amp; Evandria.
-        </p>
+        {/* Bloco Expandido */}
+        <div
+          id="gift-pix-details"
+          className={`gift-pix-content ${isExpanded ? 'gift-pix-content--open' : ''}`}
+          aria-hidden={!isExpanded}
+        >
+          {isExpanded && (
+            <div className="gift-pix-card animate-fade-in">
+              <h3 className="editorial-title gift-pix-card-title">
+                Um carinho, se você desejar
+              </h3>
+
+              <div className="gift-pix-card-text">
+                <p>Sua presença é o nosso maior presente.</p>
+                <p>
+                  Mas, se desejar nos agraciar de alguma forma, disponibilizamos uma opção de presente via Pix.
+                </p>
+              </div>
+
+              {/* Card Suave com Chave e Ação */}
+              <div className="gift-pix-badge">
+                <span className="gift-pix-badge__dot" aria-hidden="true" />
+                <span>Pix &bull; {PIX_CONFIG.keyType}</span>
+              </div>
+
+              <div className="gift-pix-key-wrap">
+                <span className="gift-pix-key-display">{PIX_CONFIG.displayKey}</span>
+              </div>
+
+              <div className="gift-pix-action-wrap">
+                <button
+                  type="button"
+                  className={`gift-pix-copy-btn ${copied ? 'gift-pix-copy-btn--copied' : ''}`}
+                  onClick={handleCopy}
+                  aria-label={copied ? `Chave Pix copiada: ${PIX_KEY}` : `Copiar chave Pix ${PIX_KEY}`}
+                  aria-live="polite"
+                >
+                  {copied ? (
+                    <>
+                      <CheckIcon />
+                      <span>Chave copiada ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon />
+                      <span>Copiar chave Pix</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Assinatura Afetiva */}
+              <p className="gift-pix-signature">
+                Com carinho, Patrício &amp; Evandria.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
