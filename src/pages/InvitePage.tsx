@@ -8,6 +8,7 @@ import { EventSection } from '../components/EventSection.js';
 import { AttireSection } from '../components/AttireSection.js';
 import { AccommodationSection } from '../components/AccommodationSection.js';
 import { EditorialPhotoBreak } from '../components/EditorialPhotoBreak.js';
+import { GiftPixSection } from '../components/GiftPixSection.js';
 import { Monogram } from '../components/Monogram.js';
 import { MusicPlayer, type MusicPlayerHandle } from '../components/MusicPlayer.js';
 import { InviteEntryScreen } from '../components/InviteEntryScreen.js';
@@ -598,6 +599,12 @@ export const InvitePage: React.FC = () => {
             )}
           </div>
         </section>
+
+        {/* Separator before Pix Gift */}
+        <SectionSeparator />
+
+        {/* 8. Presente via Pix — Opcional, Elegante e Discreto */}
+        <GiftPixSection />
 
       </div>
 

@@ -1632,6 +1632,190 @@ html, body {
 }
 
 /* ─────────────────────────────────────────────
+   GIFT PIX SECTION — EDITORIAL & DISCRETO
+   ───────────────────────────────────────────── */
+.gift-pix-section {
+  background-color: var(--color-cream-bg);
+  padding-top: clamp(3rem, 6vh, 4.5rem);
+  padding-bottom: clamp(3rem, 6vh, 4.5rem);
+}
+
+.gift-pix-inner {
+  max-width: 580px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gift-pix-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.gift-pix-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--color-rose-soft);
+  color: var(--color-terracotta);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.gift-pix-icon-wrap svg {
+  flex-shrink: 0;
+}
+
+.gift-pix-title {
+  margin-bottom: 1.25rem;
+  font-size: clamp(1.8rem, 3.8vw, 2.5rem);
+}
+
+.gift-pix-text {
+  font-family: var(--font-sans);
+  font-size: clamp(0.9rem, 1.6vw, 1rem);
+  color: var(--color-text-muted);
+  line-height: 1.7;
+  max-width: 480px;
+  margin: 0 auto 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gift-pix-card {
+  background-color: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: clamp(1.5rem, 3.5vw, 2rem);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.15rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gift-pix-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-dark);
+  background-color: var(--color-terracotta-light);
+  padding: 0.35rem 0.85rem;
+  border-radius: 50px;
+  border: 1px solid rgba(200, 109, 81, 0.18);
+}
+
+.gift-pix-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-terracotta);
+}
+
+.gift-pix-key-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0;
+}
+
+.gift-pix-key-display {
+  font-family: var(--font-sans);
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 600;
+  color: var(--color-text-main);
+  letter-spacing: 0.06em;
+}
+
+.gift-pix-action-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.gift-pix-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  max-width: 320px;
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+  background-color: var(--paper-warm);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+  border-radius: 50px;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(200, 109, 81, 0.04);
+}
+
+.gift-pix-copy-btn:hover {
+  background-color: var(--color-terracotta-light);
+  border-color: var(--color-terracotta);
+  color: var(--color-terracotta-dark);
+  transform: translateY(-1px);
+}
+
+.gift-pix-copy-btn:active {
+  transform: translateY(0);
+}
+
+.gift-pix-copy-btn:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+}
+
+.gift-pix-copy-btn--copied {
+  background-color: #EEF3EC;
+  border-color: #C7D5C5;
+  color: #446349;
+  font-weight: 600;
+  transform: none;
+}
+
+.gift-pix-copy-btn--copied:hover {
+  background-color: #EEF3EC;
+  border-color: #C7D5C5;
+  color: #446349;
+  transform: none;
+}
+
+.gift-pix-copy-btn svg {
+  flex-shrink: 0;
+}
+
+.gift-pix-signature {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+  color: var(--color-text-muted);
+  margin-top: 2rem;
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────
    PAGE FOOTER — editorial
    ───────────────────────────────────────────── */
 .page-footer {
