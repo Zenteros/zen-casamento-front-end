@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 
 declare global {
   interface Window {
@@ -35,22 +35,32 @@ interface SCWidget {
   isPaused(callback: (paused: boolean) => void): void;
 }
 
+export interface MusicPlayerHandle {
+  play: () => void;
+  pause: () => void;
+  toggle: () => void;
+}
+
 export interface MusicPlayerProps {
   /** URL da faixa no SoundCloud */
   soundCloudUrl?: string;
   /** Fallback para áudio direto em HTML5 se necessário */
   audioSrc?: string;
+  /** Se o convite já foi aberto (para controlar visibilidade do botão flutuante) */
+  isVisible?: boolean;
 }
 
 const DEFAULT_SOUNDCLOUD_URL =
   'https://soundcloud.com/user-943762251-273454811/goo-goo-dolls-iris-slowed';
 
-export const MusicPlayer: React.FC<MusicPlayerProps> = ({
+const STORAGE_KEY_MUTED = 'zen_casamento_music_muted';
+
+export const MusicPlayer = forwardRef<MusicPlayerHandle, MusicPlayerProps>(({
   soundCloudUrl = DEFAULT_SOUNDCLOUD_URL,
   audioSrc,
-}) => {
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  isVisible = true,
+}, ref) => {
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const widgetRef = useRef<SCWidget | null>(null);
@@ -58,7 +68,96 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const pendingPlayRef = useRef<boolean>(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 1. Carrega o script da Widget API oficial do SoundCloud dinamicamente se necessário
+  // Executar Play
+  const executePlay = () => {
+    pendingPlayRef.current = true;
+    setIsPlaying(true);
+    try {
+      sessionStorage.setItem(STORAGE_KEY_MUTED, 'false');
+    } catch {
+      // ignore
+    }
+
+    if (soundCloudUrl) {
+      if (widgetRef.current) {
+        try {
+          widgetRef.current.play();
+        } catch (err) {
+          console.warn('[MusicPlayer] Widget play warning:', err);
+        }
+      }
+      if (iframeRef.current?.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ method: 'play' }),
+            'https://w.soundcloud.com'
+          );
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!soundCloudUrl && audioRef.current) {
+      audioRef.current.play().catch((err) => {
+        console.warn('[MusicPlayer] Falha no play do HTML5 audio:', err);
+        setIsPlaying(false);
+      });
+    }
+  };
+
+  // Executar Pause
+  const executePause = () => {
+    pendingPlayRef.current = false;
+    setIsPlaying(false);
+    try {
+      sessionStorage.setItem(STORAGE_KEY_MUTED, 'true');
+    } catch {
+      // ignore
+    }
+
+    if (soundCloudUrl) {
+      if (widgetRef.current) {
+        try {
+          widgetRef.current.pause();
+        } catch (err) {
+          console.warn('[MusicPlayer] Widget pause warning:', err);
+        }
+      }
+      if (iframeRef.current?.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({ method: 'pause' }),
+            'https://w.soundcloud.com'
+          );
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (!soundCloudUrl && audioRef.current) {
+      audioRef.current.pause();
+    }
+  };
+
+  // Executar Toggle
+  const executeToggle = () => {
+    if (isPlaying) {
+      executePause();
+    } else {
+      executePlay();
+    }
+  };
+
+  // Expõe funções para chamadas externas (ex: no clique de "Abrir nosso convite")
+  useImperativeHandle(ref, () => ({
+    play: executePlay,
+    pause: executePause,
+    toggle: executeToggle,
+  }));
+
+  // 1. Carrega o script da Widget API oficial do SoundCloud dinamicamente
   useEffect(() => {
     if (!soundCloudUrl) return;
 
@@ -76,14 +175,17 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
           if (!isMounted) return;
           isReadyRef.current = true;
           if (pendingPlayRef.current) {
-            widget.play();
+            try {
+              widget.play();
+            } catch (err) {
+              console.warn('[MusicPlayer] Erro no widget.play após READY:', err);
+            }
           }
         });
 
         widget.bind(window.SC.Widget.Events.PLAY, () => {
           if (!isMounted) return;
           setIsPlaying(true);
-          setHasStarted(true);
           pendingPlayRef.current = false;
         });
 
@@ -122,7 +224,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
               }
             } else if (data.method === 'play' || data.method === 'playProgress') {
               setIsPlaying(true);
-              setHasStarted(true);
               pendingPlayRef.current = false;
             } else if (data.method === 'pause') {
               setIsPlaying(false);
@@ -186,62 +287,6 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
   }, [isPlaying, audioSrc]);
 
-  const handleClick = () => {
-    if (soundCloudUrl) {
-      const widget = widgetRef.current;
-      if (isPlaying) {
-        // Pausar
-        pendingPlayRef.current = false;
-        setIsPlaying(false);
-        if (widget) {
-          try {
-            widget.pause();
-          } catch {
-            // fallback
-          }
-        }
-        if (iframeRef.current?.contentWindow) {
-          try {
-            iframeRef.current.contentWindow.postMessage(
-              JSON.stringify({ method: 'pause' }),
-              'https://w.soundcloud.com'
-            );
-          } catch {
-            // ignore
-          }
-        }
-      } else {
-        // Iniciar / Tocar: dispara play no contexto do clique do usuário
-        pendingPlayRef.current = true;
-        if (widget) {
-          try {
-            widget.play();
-          } catch {
-            // fallback
-          }
-        }
-        if (iframeRef.current?.contentWindow) {
-          try {
-            iframeRef.current.contentWindow.postMessage(
-              JSON.stringify({ method: 'play' }),
-              'https://w.soundcloud.com'
-            );
-          } catch {
-            // ignore
-          }
-        }
-        // NÃO definimos isPlaying/hasStarted aqui: aguardamos o evento PLAY real do SoundCloud
-      }
-      return;
-    }
-
-    // Fallback com HTML5 <audio>
-    if (!hasStarted) {
-      setHasStarted(true);
-    }
-    setIsPlaying((prev) => !prev);
-  };
-
   const handleEnded = () => {
     setIsPlaying(false);
   };
@@ -254,7 +299,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
   return (
     <aside
-      className="invite-sound-container"
+      className={`invite-sound-container ${!isVisible ? 'invite-sound-container--hidden' : ''}`}
       aria-label="Controle de áudio do convite"
     >
       {/* Widget oficial do SoundCloud (oculto visualmente mantendo integração e API) */}
@@ -290,76 +335,84 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
         />
       )}
 
-      {/* Botão de controle minimalista flutuante */}
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`invite-sound-control ${
-          !hasStarted
-            ? 'invite-sound-control--prompt'
-            : `invite-sound-control--compact ${isPlaying ? 'invite-sound-control--playing' : ''}`
-        }`}
-        aria-label={
-          !hasStarted
-            ? 'Ativar o som do convite'
-            : isPlaying
-            ? 'Pausar som'
-            : 'Ativar som'
-        }
-        title={
-          !hasStarted
-            ? 'Ativar o som'
-            : isPlaying
-            ? 'Pausar som'
-            : 'Ativar som'
-        }
-      >
-        <span className="invite-sound-control__icon" aria-hidden="true">
-          {!hasStarted || isPlaying ? (
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polygon
-                points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
-                fill="currentColor"
-                stroke="none"
-              />
-              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            </svg>
-          ) : (
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <polygon
-                points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
-                fill="currentColor"
-                stroke="none"
-              />
-              <line x1="23" y1="9" x2="17" y2="15" />
-              <line x1="17" y1="9" x2="23" y2="15" />
-            </svg>
-          )}
-        </span>
+      {/* Botão de controle de áudio acessível e discreto */}
+      {isVisible && (
+        <button
+          type="button"
+          onClick={executeToggle}
+          className={`invite-sound-control ${
+            isPlaying
+              ? 'invite-sound-control--playing'
+              : 'invite-sound-control--muted'
+          }`}
+          aria-label={
+            isPlaying
+              ? 'Música ligada. Toque para silenciar'
+              : 'Música desligada. Toque para reproduzir'
+          }
+          title={
+            isPlaying
+              ? 'Música ligada. Toque para silenciar'
+              : 'Música desligada. Toque para reproduzir'
+          }
+        >
+          <span className="invite-sound-control__icon" aria-hidden="true">
+            {isPlaying ? (
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polygon
+                  points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            ) : (
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polygon
+                  points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+          </span>
 
-        {!hasStarted && (
-          <span className="invite-sound-control__label">Ative o som</span>
-        )}
-      </button>
+          <span className="invite-sound-control__label">
+            {isPlaying ? 'Música' : 'Música'}
+          </span>
+
+          {isPlaying && (
+            <span className="invite-sound-control__waves" aria-hidden="true">
+              <span className="invite-sound-bar invite-sound-bar--1" />
+              <span className="invite-sound-bar invite-sound-bar--2" />
+              <span className="invite-sound-bar invite-sound-bar--3" />
+            </span>
+          )}
+        </button>
+      )}
     </aside>
   );
-};
+});
+
+MusicPlayer.displayName = 'MusicPlayer';

@@ -9,7 +9,8 @@ import { AttireSection } from '../components/AttireSection.js';
 import { AccommodationSection } from '../components/AccommodationSection.js';
 import { EditorialPhotoBreak } from '../components/EditorialPhotoBreak.js';
 import { Monogram } from '../components/Monogram.js';
-import { MusicPlayer } from '../components/MusicPlayer.js';
+import { MusicPlayer, type MusicPlayerHandle } from '../components/MusicPlayer.js';
+import { InviteEntryScreen } from '../components/InviteEntryScreen.js';
 import { EventDayPage } from './EventDayPage.js';
 import { apiFetch } from '../lib/api.js';
 
@@ -62,6 +63,8 @@ const CheckIcon: React.FC = () => (
 /* ──────────────────────────────────────────────────────────
    InvitePage
    ────────────────────────────────────────────────────────── */
+const STORAGE_KEY_OPENED = 'zen_casamento_opened';
+
 export const InvitePage: React.FC = () => {
   const { token } = useParams<{ token?: string }>();
 
@@ -71,6 +74,30 @@ export const InvitePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isOpened, setIsOpened] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(STORAGE_KEY_OPENED) === 'true';
+    }
+    return false;
+  });
+
+  const musicPlayerRef = React.useRef<MusicPlayerHandle | null>(null);
+
+  const handleOpenInvite = () => {
+    setIsOpened(true);
+    try {
+      sessionStorage.setItem(STORAGE_KEY_OPENED, 'true');
+    } catch {
+      // ignore
+    }
+
+    try {
+      musicPlayerRef.current?.play();
+    } catch (err) {
+      console.warn('[InvitePage] Erro ao iniciar música:', err);
+    }
+  };
 
   // Registro técnico discreto da fase temporal em ambiente de desenvolvimento
   useEffect(() => {
@@ -263,7 +290,17 @@ export const InvitePage: React.FC = () => {
 
   /* ── EVENT_DAY Phase render ── */
   if (eventState?.phase === 'EVENT_DAY') {
-    return <EventDayPage invite={invite} eventState={eventState} />;
+    return (
+      <>
+        <InviteEntryScreen
+          familyTitle={invite.familyTitle}
+          isOpened={isOpened}
+          onOpenInvite={handleOpenInvite}
+        />
+        <EventDayPage invite={invite} eventState={eventState} />
+        <MusicPlayer ref={musicPlayerRef} isVisible={isOpened} />
+      </>
+    );
   }
 
   // Determina se o RSVP do convite foi efetivamente concluído (todos os convidados com status final CONFIRMED ou DECLINED)
@@ -286,6 +323,13 @@ export const InvitePage: React.FC = () => {
   /* ── Main render (PRE_EVENT) ── */
   return (
     <>
+      {/* 0. Tela de Entrada Elegante do Convite */}
+      <InviteEntryScreen
+        familyTitle={invite.familyTitle}
+        isOpened={isOpened}
+        onOpenInvite={handleOpenInvite}
+      />
+
       {/* 1. Hero — Full Viewport Editorial */}
       <HeroSection familyTitle={invite.familyTitle} />
 
@@ -561,7 +605,7 @@ export const InvitePage: React.FC = () => {
       <PageFooter />
 
       {/* 4. Player de Música Flutuante (Canto Inferior Direito) */}
-      <MusicPlayer />
+      <MusicPlayer ref={musicPlayerRef} isVisible={isOpened} />
     </>
   );
 };
