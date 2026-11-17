@@ -225,18 +225,31 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
     setMediaUploadSuccess(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
       const search = typeof window !== 'undefined' ? window.location.search : '';
-      const res = await apiFetch(`/api/v1/event/media${search}`, {
-        method: 'POST',
-        body: formData,
-      });
+      const MAX_ATTEMPTS = 4;
+      let res: Response | null = null;
+      let data: { error?: string; code?: string } = {};
 
-      const data = await res.json().catch(() => ({}));
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
 
-      if (!res.ok) {
+        res = await apiFetch(`/api/v1/event/media${search}`, {
+          method: 'POST',
+          body: formData,
+        });
+        data = await res.json().catch(() => ({}));
+
+        // Servidor momentaneamente ocupado processando fotos (pico de envios):
+        // tenta de novo sozinho com espera crescente, sem o convidado perceber.
+        const isCapacityBusy =
+          res.status === 429 &&
+          (data.code === 'PHOTO_CAPACITY_EXCEEDED' || /ao mesmo tempo/i.test(data.error || ''));
+        if (!isCapacityBusy || attempt === MAX_ATTEMPTS) break;
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt + Math.random() * 1500));
+      }
+
+      if (!res || !res.ok) {
         throw new Error(data.error || 'Não foi possível enviar a mídia no momento. Tente novamente.');
       }
 
@@ -1002,11 +1015,11 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
                 Tire fotos e grave vídeos durante a cerimônia e a festa. Compartilhe seu olhar com os noivos e faça parte do telão da celebração!
               </p>
 
-              {/* Input invisível acionado programaticamente pelo botão de toque */}
+              {/* Input invisível acionado pelo botão de toque. Sem image/heic no accept de propósito: assim o iOS converte para JPEG (o servidor não gera a versão do telão a partir de HEIC). */}
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime"
+                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
                 style={{ display: 'none' }}
                 onChange={handleSelectFile}
                 aria-label="Selecionar foto ou vídeo"
