@@ -964,9 +964,13 @@ export const AdminGuestsPage: React.FC = () => {
     return <span className="admin-checkin-badge admin-checkin-badge--waiting">—</span>;
   };
 
-  const displayedItems = statusFilter === 'ALL'
-    ? items
-    : items.filter((invite) => invite.consolidatedStatus === statusFilter);
+  // O filtro de status é aplicado no servidor (antes da paginação). Não refiltrar aqui,
+  // senão páginas ficam incompletas e convites somem entre páginas.
+  const displayedItems = items;
+  const renderPillCount = (status: ConsolidatedRsvpStatus) =>
+    counts.invitesByStatus ? (
+      <span className="admin-filter-pill__count">{counts.invitesByStatus[status]}</span>
+    ) : null;
 
   if (checkingAuth) {
     return (
@@ -1064,37 +1068,60 @@ export const AdminGuestsPage: React.FC = () => {
             2. BARRA DE ESTATÍSTICAS RÁPIDAS
             ══════════════════════════════════════════════════════ */}
         <section className="admin-guests-stats-bar">
-          <div className="admin-stat-box">
+          <div className="admin-stat-box" title="Total de convites (famílias)">
             <span className="admin-stat-box__label">Famílias</span>
             <strong className="admin-stat-box__val">{counts.totalInvites}</strong>
+            {counts.invitesByStatus && (
+              <span className="admin-stat-box__sub">
+                {counts.invitesByStatus.PARTIAL} parcia{counts.invitesByStatus.PARTIAL === 1 ? 'l' : 'is'}
+              </span>
+            )}
           </div>
-          <div className="admin-stat-box">
+          <div className="admin-stat-box" title="Todas as pessoas cadastradas, adultos e crianças, em qualquer status">
             <span className="admin-stat-box__label">Total Convidados</span>
             <strong className="admin-stat-box__val">{counts.totalGuests}</strong>
+            <span className="admin-stat-box__sub">
+              {counts.totalGuests - counts.childrenGuests} adultos · {counts.childrenGuests} crianças
+            </span>
           </div>
-          <div className="admin-stat-box admin-stat-box--confirmed">
+          <div className="admin-stat-box admin-stat-box--confirmed" title="Pessoas confirmadas (inclui crianças confirmadas)">
             <span className="admin-stat-box__label">Confirmados</span>
             <strong className="admin-stat-box__val">{counts.confirmedGuests}</strong>
+            {counts.confirmedChildren !== undefined && (
+              <span className="admin-stat-box__sub">
+                {counts.confirmedAdults} adultos · {counts.confirmedChildren} crianças
+              </span>
+            )}
           </div>
-          <div className="admin-stat-box admin-stat-box--declined">
+          <div className="admin-stat-box admin-stat-box--declined" title="Pessoas que recusaram (inclui crianças)">
             <span className="admin-stat-box__label">Recusados</span>
             <strong className="admin-stat-box__val">{counts.declinedGuests}</strong>
+            {counts.declinedChildren !== undefined && (
+              <span className="admin-stat-box__sub">{counts.declinedChildren} crianças</span>
+            )}
           </div>
-          <div className="admin-stat-box admin-stat-box--pending">
+          <div className="admin-stat-box admin-stat-box--pending" title="Pessoas sem resposta (inclui crianças)">
             <span className="admin-stat-box__label">Pendentes</span>
             <strong className="admin-stat-box__val">{counts.pendingGuests}</strong>
+            {counts.pendingChildren !== undefined && (
+              <span className="admin-stat-box__sub">{counts.pendingChildren} crianças</span>
+            )}
           </div>
-          <div className="admin-stat-box">
-            <span className="admin-stat-box__label">Crianças</span>
+          <div className="admin-stat-box" title="Todas as crianças cadastradas, em qualquer status de RSVP">
+            <span className="admin-stat-box__label">Crianças (total)</span>
             <strong className="admin-stat-box__val">{counts.childrenGuests}</strong>
+            {counts.confirmedChildren !== undefined && (
+              <span className="admin-stat-box__sub">{counts.confirmedChildren} confirmadas</span>
+            )}
           </div>
-          <div className="admin-stat-box">
+          <div className="admin-stat-box" title="Pessoas com check-in realizado">
             <span className="admin-stat-box__label">Presentes</span>
             <strong className="admin-stat-box__val">{counts.checkedInGuests}</strong>
           </div>
-          <div className="admin-stat-box">
+          <div className="admin-stat-box" title="Pessoas não recusadas (confirmadas ou pendentes) ainda sem mesa">
             <span className="admin-stat-box__label">Sem Mesa</span>
             <strong className="admin-stat-box__val">{counts.withoutTableGuests}</strong>
+            <span className="admin-stat-box__sub">confirmados + pendentes</span>
           </div>
         </section>
 
@@ -1152,7 +1179,7 @@ export const AdminGuestsPage: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                Pendentes
+                Pendentes{renderPillCount('PENDING')}
               </button>
               <button
                 type="button"
@@ -1162,7 +1189,7 @@ export const AdminGuestsPage: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                Confirmados
+                Confirmados{renderPillCount('CONFIRMED')}
               </button>
               <button
                 type="button"
@@ -1172,7 +1199,7 @@ export const AdminGuestsPage: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                Parciais
+                Parciais{renderPillCount('PARTIAL')}
               </button>
               <button
                 type="button"
@@ -1182,7 +1209,7 @@ export const AdminGuestsPage: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                Recusados
+                Recusados{renderPillCount('DECLINED')}
               </button>
             </div>
 
@@ -1270,7 +1297,7 @@ export const AdminGuestsPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th className="admin-col-family">Família / Convite</th>
-                    <th className="admin-col-guests">Integrantes ({displayedItems.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
+                    <th className="admin-col-guests" title="Integrantes das famílias que atendem aos filtros (todas as páginas)">Integrantes ({counts.filteredGuests ?? displayedItems.reduce((acc, i) => acc + i.guestsCount, 0)})</th>
                     <th className="admin-col-status">RSVP Consolidado</th>
                     <th className="admin-col-table">Mesa</th>
                     <th className="admin-col-presence">Presença</th>

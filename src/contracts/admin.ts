@@ -281,6 +281,16 @@ export interface AdminInviteCountsDTO {
   checkedInGuests: number;
   childrenGuests: number;
   withoutTableGuests: number;
+  /** Detalhamento de confirmados por faixa (confirmedAdults + confirmedChildren = confirmedGuests) */
+  confirmedAdults?: number;
+  confirmedChildren?: number;
+  /** Crianças por status de RSVP (soma = childrenGuests) */
+  declinedChildren?: number;
+  pendingChildren?: number;
+  /** Quantidade de famílias (convites) por status consolidado */
+  invitesByStatus?: Record<ConsolidatedRsvpStatus, number>;
+  /** Integrantes nos convites que passaram pelos filtros atuais (todas as páginas) */
+  filteredGuests?: number;
 }
 
 export interface AdminInviteListResponseDTO {
