@@ -48,6 +48,8 @@ export interface MusicPlayerProps {
   audioSrc?: string;
   /** Se o convite já foi aberto (para controlar visibilidade do botão flutuante) */
   isVisible?: boolean;
+  /** Eleva o botão para não sobrepor a barra de navegação inferior (Dia do Evento no mobile) */
+  aboveBottomNav?: boolean;
 }
 
 const DEFAULT_SOUNDCLOUD_URL =
@@ -59,6 +61,7 @@ export const MusicPlayer = forwardRef<MusicPlayerHandle, MusicPlayerProps>(({
   soundCloudUrl = DEFAULT_SOUNDCLOUD_URL,
   audioSrc,
   isVisible = true,
+  aboveBottomNav = false,
 }, ref) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
@@ -299,7 +302,9 @@ export const MusicPlayer = forwardRef<MusicPlayerHandle, MusicPlayerProps>(({
 
   return (
     <aside
-      className={`invite-sound-container ${!isVisible ? 'invite-sound-container--hidden' : ''}`}
+      className={`invite-sound-container ${!isVisible ? 'invite-sound-container--hidden' : ''} ${
+        aboveBottomNav ? 'invite-sound-container--above-nav' : ''
+      }`}
       aria-label="Controle de áudio do convite"
     >
       {/* Widget oficial do SoundCloud (oculto visualmente mantendo integração e API) */}

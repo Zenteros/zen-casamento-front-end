@@ -20,6 +20,9 @@ export type MediaStatus =
   | 'REJECTED'
   | 'HIDDEN';
 
+/** Escolha do convidado no envio: PUBLIC vai ao telão; PRIVATE fica só na galeria dos noivos. */
+export type MediaVisibility = 'PUBLIC' | 'PRIVATE';
+
 export type MediaProcessingStatus =
   | 'PENDING'
   | 'PROCESSING'
@@ -181,6 +184,7 @@ export interface MediaMineItemDTO {
   id: string;
   type: MediaType;
   status: MediaStatus;
+  visibility?: MediaVisibility;
   processingStatus: MediaProcessingStatus;
   originalFileName: string;
   mimeType: string;

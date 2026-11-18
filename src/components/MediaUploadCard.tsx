@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { MediaMineItemDTO } from '../contracts/index.js';
+import type { MediaMineItemDTO, MediaVisibility } from '../contracts/index.js';
 import { buildApiUrl, apiFetch } from '../lib/api.js';
 
 /* ──────────────────────────────────────────────
@@ -18,6 +18,13 @@ export const CameraIcon: React.FC = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
     <circle cx="12" cy="13" r="4" />
+  </svg>
+);
+
+const VideoIcon: React.FC = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="23 7 16 12 23 17 23 7" />
+    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
   </svg>
 );
 
@@ -44,7 +51,7 @@ function validateFile(file: File): string | null {
 }
 
 /** Envia um arquivo, repetindo sozinho quando o servidor está momentaneamente ocupado. */
-async function uploadOne(file: File): Promise<void> {
+async function uploadOne(file: File, visibility: MediaVisibility): Promise<void> {
   const search = typeof window !== 'undefined' ? window.location.search : '';
   const MAX_ATTEMPTS = 4;
   let res: Response | null = null;
@@ -52,6 +59,8 @@ async function uploadOne(file: File): Promise<void> {
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const formData = new FormData();
+    // O campo precisa vir antes do arquivo para o servidor ler junto com o upload
+    formData.append('visibility', visibility);
     formData.append('file', file);
 
     res = await apiFetch(`/api/v1/event/media${search}`, {
@@ -81,6 +90,10 @@ interface MediaUploadCardProps {
 
 export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'event-day' }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const photoCaptureRef = useRef<HTMLInputElement | null>(null);
+  const videoCaptureRef = useRef<HTMLInputElement | null>(null);
+  const [visibility, setVisibility] = useState<MediaVisibility>('PUBLIC');
+  const [lastSentVisibility, setLastSentVisibility] = useState<MediaVisibility>('PUBLIC');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -113,7 +126,9 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
   }, [previewUrl]);
 
   const resetInput = () => {
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    for (const input of [fileInputRef.current, photoCaptureRef.current, videoCaptureRef.current]) {
+      if (input) input.value = '';
+    }
   };
 
   const applySelection = (files: File[]) => {
@@ -168,7 +183,7 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
     for (let i = 0; i < selectedFiles.length; i++) {
       setProgress({ current: i + 1, total: selectedFiles.length });
       try {
-        await uploadOne(selectedFiles[i]);
+        await uploadOne(selectedFiles[i], visibility);
         sent++;
       } catch (err: unknown) {
         failed.push(selectedFiles[i]);
@@ -181,6 +196,7 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
     await fetchMineMedia();
 
     if (sent > 0) {
+      setLastSentVisibility(visibility);
       setUploadSuccess(sent === 1 ? 'Recebemos seu registro ❤️' : `Recebemos seus ${sent} registros ❤️`);
       setTimeout(() => setUploadSuccess(null), 7000);
     }
@@ -211,10 +227,30 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
           Registre Esse Momento
         </h2>
         <p className="event-day-media-callout__text">
-          Tire fotos e grave vídeos durante a cerimônia e a festa, ou escolha da galeria do celular. Compartilhe seu olhar com os noivos e faça parte do telão da celebração!
+          Tire fotos e grave vídeos aqui mesmo, na hora. Escolha se vai para o telão da festa ou fica só para os noivos.
         </p>
 
-        {/* Sem capture: o celular oferece câmera ou galeria. Sem image/heic no accept de propósito: assim o iOS converte para JPEG (o servidor não gera a versão do telão a partir de HEIC). */}
+        {/* Câmera direto: abre a câmera do celular sem passar pela galeria */}
+        <input
+          ref={photoCaptureRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handleSelectFiles}
+          aria-label="Tirar foto com a câmera"
+        />
+        <input
+          ref={videoCaptureRef}
+          type="file"
+          accept="video/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          onChange={handleSelectFiles}
+          aria-label="Gravar vídeo com a câmera"
+        />
+
+        {/* Galeria (opção secundária). Sem image/heic no accept de propósito: assim o iOS converte para JPEG (o servidor não gera a versão do telão a partir de HEIC). */}
         <input
           ref={fileInputRef}
           type="file"
@@ -225,19 +261,60 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
           aria-label="Selecionar fotos ou vídeos"
         />
 
+        <div className="event-day-visibility" role="radiogroup" aria-label="Onde seu registro vai aparecer">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={visibility === 'PUBLIC'}
+            className={`event-day-visibility__opt${visibility === 'PUBLIC' ? ' event-day-visibility__opt--active' : ''}`}
+            onClick={() => setVisibility('PUBLIC')}
+            disabled={isUploading}
+          >
+            <strong>📺 Telão</strong>
+            <span>Todos veem na festa</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={visibility === 'PRIVATE'}
+            className={`event-day-visibility__opt${visibility === 'PRIVATE' ? ' event-day-visibility__opt--active' : ''}`}
+            onClick={() => setVisibility('PRIVATE')}
+            disabled={isUploading}
+          >
+            <strong>🔒 Só para os noivos</strong>
+            <span>Fica na galeria deles</span>
+          </button>
+        </div>
+
         {selectedFiles.length === 0 && (
           <div className="event-day-media-callout__action">
+            <div className="event-day-capture-row">
+              <button
+                type="button"
+                className="event-day-cta-btn event-day-cta-btn--photo"
+                onClick={() => photoCaptureRef.current?.click()}
+              >
+                <CameraIcon />
+                <span>Tirar foto</span>
+              </button>
+              <button
+                type="button"
+                className="event-day-cta-btn event-day-cta-btn--photo"
+                onClick={() => videoCaptureRef.current?.click()}
+              >
+                <VideoIcon />
+                <span>Gravar vídeo</span>
+              </button>
+            </div>
             <button
               type="button"
-              className="event-day-cta-btn event-day-cta-btn--photo"
+              className="event-day-gallery-link"
               onClick={() => fileInputRef.current?.click()}
-              aria-label="Enviar fotos ou vídeos"
             >
-              <CameraIcon />
-              <span>Enviar foto ou vídeo</span>
+              ou escolher da galeria
             </button>
             <p className="event-day-media-callout__hint">
-              Pode escolher várias de uma vez • Fotos até 15 MB • Vídeos até 100 MB
+              Fotos até 15 MB • Vídeos até 100 MB
             </p>
           </div>
         )}
@@ -262,7 +339,9 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
               <CheckIcon /> {uploadSuccess}
             </div>
             <p className="event-day-media-success__text">
-              Aguardando aprovação para aparecer na celebração.
+              {lastSentVisibility === 'PRIVATE'
+                ? 'Guardado na galeria dos noivos.'
+                : 'As fotos já entram na fila do telão.'}
             </p>
           </div>
         )}
@@ -360,8 +439,18 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
                       {item.originalFileName}
                     </span>
                   </div>
-                  <span className="event-day-status-pill event-day-status-pill--pending">
-                    Aguardando aprovação
+                  <span
+                    className={`event-day-status-pill ${
+                      item.visibility === 'PRIVATE' ? 'event-day-status-pill--pending' : 'event-day-status-pill--present'
+                    }`}
+                  >
+                    {item.status === 'HIDDEN' || item.status === 'REJECTED'
+                      ? 'Oculto'
+                      : item.visibility === 'PRIVATE'
+                        ? '🔒 Só noivos'
+                        : item.type === 'VIDEO'
+                          ? '🎬 Compartilhado'
+                          : '📺 No telão'}
                   </span>
                 </div>
               ))}

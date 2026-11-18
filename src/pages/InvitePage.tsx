@@ -299,7 +299,7 @@ export const InvitePage: React.FC = () => {
           onOpenInvite={handleOpenInvite}
         />
         <EventDayPage invite={invite} eventState={eventState} />
-        <MusicPlayer ref={musicPlayerRef} isVisible={isOpened} />
+        <MusicPlayer ref={musicPlayerRef} isVisible={isOpened} aboveBottomNav />
       </>
     );
   }
