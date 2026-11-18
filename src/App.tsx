@@ -8,11 +8,15 @@ import { AdminTablesPage } from './pages/AdminTablesPage.js';
 import { AdminMediaPage } from './pages/AdminMediaPage.js';
 import { AdminContentPage } from './pages/AdminContentPage.js';
 import { ScreenPage } from './pages/ScreenPage.js';
+import { FestaPage } from './pages/FestaPage.js';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* QR genérico dos cartões das mesas */}
+        <Route path="/festa" element={<FestaPage />} />
+        <Route path="/fotos" element={<Navigate to="/festa" replace />} />
         <Route path="/screen" element={<ScreenPage />} />
         <Route path="/telao" element={<ScreenPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />

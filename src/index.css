@@ -9337,3 +9337,49 @@ html, body {
 
 
 
+
+/* ─── /festa: destino do QR genérico das mesas (leu, abriu, enviou) ─── */
+.festa-page {
+  align-items: center;
+  padding: 2rem 1rem calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+
+.festa-page__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  color: var(--color-terracotta);
+}
+
+.festa-page__names {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  color: var(--color-text-main);
+  margin: 0;
+}
+
+.festa-page__main {
+  width: 100%;
+  max-width: 480px;
+}
+
+.festa-page__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.festa-page__status p {
+  margin: 0;
+}
+
+.event-day-card--media-standalone {
+  padding: 2rem 1.25rem;
+}

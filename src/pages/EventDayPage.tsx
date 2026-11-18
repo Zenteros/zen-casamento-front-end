@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { InviteDTO, EventStateDTO, MediaMineItemDTO } from '../contracts/index.js';
+import React, { useState, useEffect } from 'react';
+import type { InviteDTO, EventStateDTO } from '../contracts/index.js';
 import { classifySchedule, formatScheduleTime } from '../domain/index.js';
 import { useEventDayContext } from '../hooks/useEventDayContext.js';
 import { Monogram } from '../components/Monogram.js';
-import { buildApiUrl, apiFetch } from '../lib/api.js';
+import { apiFetch } from '../lib/api.js';
+import { MediaUploadCard, CameraIcon } from '../components/MediaUploadCard.js';
 
 interface EventDayPageProps {
   invite: InviteDTO;
@@ -43,13 +44,6 @@ const ClockIcon: React.FC = () => (
 const CheckIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-const CameraIcon: React.FC = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-    <circle cx="12" cy="13" r="4" />
   </svg>
 );
 
@@ -109,15 +103,6 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
   const [isMenuExpanded, setIsMenuExpanded] = useState<boolean>(false);
   const [activeSection, setActiveSection] = useState<string>('section-now');
 
-  // ─── Estados e Handlers para Mídia Colaborativa ───
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isUploadingMedia, setIsUploadingMedia] = useState<boolean>(false);
-  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
-  const [mediaUploadSuccess, setMediaUploadSuccess] = useState<string | null>(null);
-  const [mineMediaList, setMineMediaList] = useState<MediaMineItemDTO[]>([]);
-
   // ─── Scroll suave com offset para a barra superior/conteúdo ───
   const scrollToSection = (sectionId: string) => {
     const el = document.getElementById(sectionId);
@@ -148,124 +133,6 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const fetchMineMedia = useCallback(async () => {
-    try {
-      const res = await apiFetch('/api/v1/event/media/mine', {
-        method: 'GET',
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMineMediaList(data.mediaItems || []);
-      }
-    } catch {
-      // Falha silenciosa para não quebrar a home do dia
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMineMedia();
-  }, [fetchMineMedia]);
-
-  const handleSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setMediaUploadError(null);
-    setMediaUploadSuccess(null);
-
-    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|heic|heif)$/i.test(file.name);
-    const isVideo = file.type.startsWith('video/') || /\.(mp4|mov)$/i.test(file.name);
-
-    if (!isImage && !isVideo) {
-      setMediaUploadError('Formato não suportado. Por favor, envie fotos (JPEG, PNG, WebP) ou vídeos (MP4, MOV).');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    if (isImage && file.size > 15 * 1024 * 1024) {
-      setMediaUploadError('A foto excede o limite de 15 MB. Por favor, escolha um arquivo menor.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    if (isVideo && file.size > 100 * 1024 * 1024) {
-      setMediaUploadError('O vídeo excede o limite de 100 MB. Por favor, escolha um vídeo mais curto.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    setSelectedFile(file);
-
-    if (isImage) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    } else {
-      setPreviewUrl(null);
-    }
-  };
-
-  const handleCancelSelection = () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setMediaUploadError(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleUploadMedia = async () => {
-    if (!selectedFile || isUploadingMedia) return;
-
-    setIsUploadingMedia(true);
-    setMediaUploadError(null);
-    setMediaUploadSuccess(null);
-
-    try {
-      const search = typeof window !== 'undefined' ? window.location.search : '';
-      const MAX_ATTEMPTS = 4;
-      let res: Response | null = null;
-      let data: { error?: string; code?: string } = {};
-
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        res = await apiFetch(`/api/v1/event/media${search}`, {
-          method: 'POST',
-          body: formData,
-        });
-        data = await res.json().catch(() => ({}));
-
-        // Servidor momentaneamente ocupado processando fotos (pico de envios):
-        // tenta de novo sozinho com espera crescente, sem o convidado perceber.
-        const isCapacityBusy =
-          res.status === 429 &&
-          (data.code === 'PHOTO_CAPACITY_EXCEEDED' || /ao mesmo tempo/i.test(data.error || ''));
-        if (!isCapacityBusy || attempt === MAX_ATTEMPTS) break;
-        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt + Math.random() * 1500));
-      }
-
-      if (!res || !res.ok) {
-        throw new Error(data.error || 'Não foi possível enviar a mídia no momento. Tente novamente.');
-      }
-
-      setMediaUploadSuccess('Recebemos seu registro ❤️');
-      handleCancelSelection();
-      await fetchMineMedia();
-
-      setTimeout(() => {
-        setMediaUploadSuccess(null);
-      }, 7000);
-    } catch (err: unknown) {
-      setMediaUploadError((err as Error).message || 'Erro ao enviar foto ou vídeo. Tente novamente.');
-    } finally {
-      setIsUploadingMedia(false);
-    }
-  };
 
   const handleCheckIn = async (guestId: string) => {
     if (submittingGuestId) return;
@@ -1003,170 +870,7 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
             8. FOTOS & VÍDEOS (CENTRAL COLABORATIVA DE MÍDIA)
             ══════════════════════════════════════════════════════ */}
         <section id="section-media" className="event-day-section" aria-labelledby="heading-media">
-          <div className="event-day-card event-day-card--media">
-            <div className="event-day-media-callout">
-              <div className="event-day-media-callout__icon">
-                <CameraIcon />
-              </div>
-              <h2 id="heading-media" className="event-day-media-callout__title">
-                Registre Esse Momento
-              </h2>
-              <p className="event-day-media-callout__text">
-                Tire fotos e grave vídeos durante a cerimônia e a festa. Compartilhe seu olhar com os noivos e faça parte do telão da celebração!
-              </p>
-
-              {/* Input invisível acionado pelo botão de toque. Sem image/heic no accept de propósito: assim o iOS converte para JPEG (o servidor não gera a versão do telão a partir de HEIC). */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
-                style={{ display: 'none' }}
-                onChange={handleSelectFile}
-                aria-label="Selecionar foto ou vídeo"
-              />
-
-              {/* Botão de Ação Principal (CTA) */}
-              {!selectedFile && (
-                <div className="event-day-media-callout__action">
-                  <button
-                    type="button"
-                    className="event-day-cta-btn event-day-cta-btn--photo"
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label="Compartilhar foto ou vídeo"
-                  >
-                    <CameraIcon />
-                    <span>Compartilhar foto ou vídeo</span>
-                  </button>
-                  <p className="event-day-media-callout__hint">
-                    Fotos até 15 MB • Vídeos até 100 MB
-                  </p>
-                </div>
-              )}
-
-              {/* Mensagem de Erro de Upload */}
-              {mediaUploadError && (
-                <div className="event-day-media-error animate-fade-in" role="alert">
-                  <span>{mediaUploadError}</span>
-                  <button
-                    type="button"
-                    className="event-day-media-error__close"
-                    onClick={() => setMediaUploadError(null)}
-                    aria-label="Fechar aviso de erro"
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-
-              {/* Mensagem de Sucesso */}
-              {mediaUploadSuccess && (
-                <div className="event-day-media-success animate-fade-in" role="status">
-                  <div className="event-day-media-success__title">
-                    <CheckIcon /> {mediaUploadSuccess}
-                  </div>
-                  <p className="event-day-media-success__text">
-                    Aguardando aprovação para aparecer na celebração.
-                  </p>
-                </div>
-              )}
-
-              {/* Card de Preview do Arquivo Selecionado */}
-              {selectedFile && (
-                <div className="event-day-media-preview-card animate-fade-in">
-                  <div className="event-day-media-preview-header">
-                    <span className="event-day-media-preview-header__tag">
-                      {selectedFile.type.startsWith('video/') ? '🎬 Vídeo Selecionado' : '📷 Foto Selecionada'}
-                    </span>
-                    <span className="event-day-media-preview-header__size">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                    </span>
-                  </div>
-
-                  {previewUrl ? (
-                    <div className="event-day-media-preview-img-wrap">
-                      <img
-                        src={previewUrl}
-                        alt="Pré-visualização da foto selecionada"
-                        className="event-day-media-preview-img"
-                      />
-                    </div>
-                  ) : (
-                    <div className="event-day-media-preview-video-box">
-                      <div className="event-day-media-preview-video-box__icon">🎬</div>
-                      <strong className="event-day-media-preview-video-box__name">{selectedFile.name}</strong>
-                    </div>
-                  )}
-
-                  <div className="event-day-media-preview-actions">
-                    <button
-                      type="button"
-                      className="event-day-btn event-day-btn--upload-submit"
-                      disabled={isUploadingMedia}
-                      onClick={handleUploadMedia}
-                    >
-                      {isUploadingMedia ? (
-                        <>
-                          <span className="event-day-spinner" aria-hidden="true" />
-                          <span>Enviando registro...</span>
-                        </>
-                      ) : (
-                        'Enviar para o Casamento ❤️'
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="event-day-btn event-day-btn--upload-cancel"
-                      disabled={isUploadingMedia}
-                      onClick={handleCancelSelection}
-                    >
-                      Trocar arquivo
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Lista das mídias enviadas pelo próprio convite */}
-              {mineMediaList.length > 0 && (
-                <div className="event-day-mine-media-wrap">
-                  <div className="event-day-mine-media-header">
-                    <h3 className="event-day-mine-media-title">
-                      Seus Registros Enviados ({mineMediaList.length})
-                    </h3>
-                  </div>
-
-                  <div className="event-day-mine-media-list">
-                    {mineMediaList.map((item) => (
-                      <div key={item.id} className="event-day-mine-media-item">
-                        <div className="event-day-mine-media-item__info">
-                          {item.type === 'PHOTO' && item.hasThumb ? (
-                            <div className="event-day-mine-media-thumb-wrap">
-                              <img
-                                src={buildApiUrl(`/api/v1/event/media/${item.id}/file?variant=thumb`)}
-                                alt={item.originalFileName}
-                                className="event-day-mine-media-thumb"
-                                loading="lazy"
-                              />
-                            </div>
-                          ) : (
-                            <div className="event-day-mine-media-thumb-wrap event-day-mine-media-thumb-wrap--placeholder">
-                              <span>{item.type === 'VIDEO' ? '🎬' : '📷'}</span>
-                            </div>
-                          )}
-                          <span className="event-day-mine-media-item__name">
-                            {item.originalFileName}
-                          </span>
-                        </div>
-                        <span className="event-day-status-pill event-day-status-pill--pending">
-                          Aguardando aprovação
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <MediaUploadCard />
         </section>
 
         {/* ══════════════════════════════════════════════════════
