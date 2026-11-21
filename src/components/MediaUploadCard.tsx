@@ -30,7 +30,9 @@ const VideoIcon: React.FC = () => (
 
 const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
-const MAX_FILES_PER_BATCH = 20;
+// Alinhado ao limite da API: 15 envios por minuto por sessão (POST /api/v1/event/media).
+const MAX_FILES_PER_BATCH = 15;
+const RATE_LIMIT_FALLBACK_SECONDS = 60;
 
 function isVideoFile(file: File): boolean {
   return file.type.startsWith('video/') || /\.(mp4|mov)$/i.test(file.name);
@@ -50,12 +52,32 @@ function validateFile(file: File): string | null {
   return null;
 }
 
+/**
+ * Falha de envio. `stopBatch` indica que os próximos arquivos do lote também falhariam
+ * (limite por minuto ou cota do convite), então o lote para e eles ficam para depois.
+ */
+class UploadError extends Error {
+  constructor(
+    message: string,
+    readonly stopBatch: boolean = false,
+    readonly retryAfterSeconds: number | null = null
+  ) {
+    super(message);
+    this.name = 'UploadError';
+  }
+}
+
+function parseRetryAfter(res: Response): number {
+  const value = Number.parseInt(res.headers.get('Retry-After') || '', 10);
+  return Number.isFinite(value) && value > 0 ? value : RATE_LIMIT_FALLBACK_SECONDS;
+}
+
 /** Envia um arquivo, repetindo sozinho quando o servidor está momentaneamente ocupado. */
 async function uploadOne(file: File, visibility: MediaVisibility): Promise<void> {
   const search = typeof window !== 'undefined' ? window.location.search : '';
   const MAX_ATTEMPTS = 4;
   let res: Response | null = null;
-  let data: { error?: string; code?: string } = {};
+  let data: { error?: string; code?: string; message?: string } = {};
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const formData = new FormData();
@@ -63,11 +85,29 @@ async function uploadOne(file: File, visibility: MediaVisibility): Promise<void>
     formData.append('visibility', visibility);
     formData.append('file', file);
 
-    res = await apiFetch(`/api/v1/event/media${search}`, {
-      method: 'POST',
-      body: formData,
-    });
+    try {
+      res = await apiFetch(`/api/v1/event/media${search}`, {
+        method: 'POST',
+        body: formData,
+      });
+    } catch {
+      // Erro de rede (o navegador mostraria "Failed to fetch" / "Load failed", em inglês)
+      throw new UploadError('Sem conexão no momento. Verifique o sinal e toque em enviar de novo.');
+    }
     data = await res.json().catch(() => ({}));
+
+    if (res.status === 429) {
+      // Limite de 15 envios por minuto por sessão: o resto do lote também seria recusado agora.
+      const isUploadRateLimited =
+        data.code === 'MEDIA_UPLOAD_RATE_LIMITED' || data.error === 'Too Many Requests';
+      if (isUploadRateLimited) {
+        throw new UploadError('', true, parseRetryAfter(res));
+      }
+      // Cota total de envios do convite/celular atingida: nada mais do lote será aceito.
+      if (data.code !== 'PHOTO_CAPACITY_EXCEEDED' && !/ao mesmo tempo/i.test(data.error || '')) {
+        throw new UploadError(data.error || 'Limite de envios atingido.', true);
+      }
+    }
 
     // Servidor momentaneamente ocupado processando fotos (pico de envios):
     // tenta de novo sozinho com espera crescente, sem o convidado perceber.
@@ -79,8 +119,15 @@ async function uploadOne(file: File, visibility: MediaVisibility): Promise<void>
   }
 
   if (!res || !res.ok) {
-    throw new Error(data.error || 'Não foi possível enviar a mídia no momento. Tente novamente.');
+    throw new UploadError(data.error || 'Não foi possível enviar a mídia no momento. Tente novamente.');
   }
+}
+
+function rateLimitMessage(sent: number, total: number, remaining: number, retryAfterSeconds: number): string {
+  const wait = retryAfterSeconds >= 60 ? 'cerca de 1 minuto' : `cerca de ${retryAfterSeconds} segundos`;
+  const arrived = sent > 0 ? `${sent} de ${total} já chegaram. ` : '';
+  const left = remaining === 1 ? 'O arquivo que falta continua selecionado' : `Os ${remaining} arquivos que faltam continuam selecionados`;
+  return `Você atingiu o limite de ${MAX_FILES_PER_BATCH} envios por minuto. ${arrived}${left}: aguarde ${wait} e toque em enviar de novo.`;
 }
 
 interface MediaUploadCardProps {
@@ -154,7 +201,12 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
     }
 
     if (valid.length > MAX_FILES_PER_BATCH) {
-      rejections.push(`Envie até ${MAX_FILES_PER_BATCH} arquivos por vez. Separamos os ${MAX_FILES_PER_BATCH} primeiros.`);
+      const leftOut = valid.length - MAX_FILES_PER_BATCH;
+      rejections.push(
+        `Você escolheu ${valid.length} arquivos, mas dá para enviar até ${MAX_FILES_PER_BATCH} por minuto. ` +
+          `Separamos os ${MAX_FILES_PER_BATCH} primeiros; ${leftOut === 1 ? 'o outro ficou' : `os outros ${leftOut} ficaram`} de fora. ` +
+          'Depois de enviar, aguarde 1 minuto e escolha os demais.'
+      );
       valid.length = MAX_FILES_PER_BATCH;
     }
 
@@ -179,6 +231,7 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
     const failed: File[] = [];
     let lastError = '';
     let sent = 0;
+    let rateLimitedRetryAfter: number | null = null;
 
     for (let i = 0; i < selectedFiles.length; i++) {
       setProgress({ current: i + 1, total: selectedFiles.length });
@@ -188,6 +241,12 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
       } catch (err: unknown) {
         failed.push(selectedFiles[i]);
         lastError = (err as Error).message || 'Erro ao enviar foto ou vídeo.';
+        if (err instanceof UploadError && err.stopBatch) {
+          // Os próximos também seriam recusados agora: guarda todos os que faltam, sem tentar enviar
+          failed.push(...selectedFiles.slice(i + 1));
+          rateLimitedRetryAfter = err.retryAfterSeconds;
+          break;
+        }
       }
     }
 
@@ -204,11 +263,15 @@ export const MediaUploadCard: React.FC<MediaUploadCardProps> = ({ variant = 'eve
     if (failed.length > 0) {
       // Mantém só o que falhou selecionado, para tentar de novo com um toque
       applySelection(failed);
-      setUploadError(
-        failed.length === 1
-          ? lastError
-          : `${failed.length} arquivos não foram enviados. ${lastError} Toque em enviar para tentar de novo.`
-      );
+      if (rateLimitedRetryAfter !== null) {
+        setUploadError(rateLimitMessage(sent, selectedFiles.length, failed.length, rateLimitedRetryAfter));
+      } else {
+        setUploadError(
+          failed.length === 1
+            ? lastError
+            : `${failed.length} arquivos não foram enviados. ${lastError} Toque em enviar para tentar de novo.`
+        );
+      }
     } else {
       handleCancelSelection();
     }
