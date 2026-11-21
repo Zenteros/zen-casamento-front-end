@@ -21,6 +21,8 @@ export interface AdminMediaItemDTO {
   familyTitle: string;
   type: MediaType;
   status: MediaStatus;
+  /** Escolha do convidado no envio: PUBLIC vai ao telão; PRIVATE fica só na galeria dos noivos. */
+  visibility?: 'PUBLIC' | 'PRIVATE';
   processingStatus: MediaProcessingStatus;
   featured: boolean;
   originalFileName: string;
@@ -297,6 +299,29 @@ export interface AdminInviteListResponseDTO {
   items: AdminInviteItemDTO[];
   pagination: AdminPaginationDTO;
   counts: AdminInviteCountsDTO;
+}
+
+export type AdminDeleteMediaOutcome = 'deleted' | 'already_deleted' | 'partial';
+
+/** Espaço do sistema de arquivos onde a pasta de mídia está montada (mesma semântica do `df`). */
+export interface AdminStorageDiskDTO {
+  path: string;
+  mountPoint: string | null;
+  fsType: string | null;
+  totalBytes: number;
+  usedBytes: number;
+  freeBytes: number;
+  usedPercent: number;
+  measuredAt: string;
+}
+
+export interface AdminDeleteMediaResponseDTO {
+  success: boolean;
+  outcome: AdminDeleteMediaOutcome;
+  message: string;
+  mediaId: string;
+  originalFileName: string | null;
+  pendingFiles: number;
 }
 
 export interface AdminDeleteInviteResponseDTO {
@@ -605,3 +630,71 @@ export interface AdminImportConfirmResponseDTO {
   message: string;
 }
 
+
+// ── Cardápio: erros por campo e "Colar cardápio" ──
+
+export const MENU_SECTION_TITLE_MAX = 100;
+export const MENU_SECTION_DESCRIPTION_MAX = 300;
+export const MENU_ITEM_NAME_MAX = 120;
+export const MENU_ITEM_DESCRIPTION_MAX = 400;
+
+export interface AdminFieldErrorDTO {
+  field: string;
+  label: string;
+  message: string;
+}
+
+export interface AdminValidationErrorResponseDTO {
+  error: string;
+  fields?: AdminFieldErrorDTO[];
+}
+
+export type AdminMenuImportStatus = 'create' | 'update' | 'unchanged';
+
+export interface AdminMenuImportRequestDTO {
+  text: string;
+  dryRun: boolean;
+  deactivateMissing: boolean;
+}
+
+export interface AdminMenuImportItemPreviewDTO {
+  line: number;
+  name: string;
+  description: string | null;
+  status: AdminMenuImportStatus;
+  changes: string[];
+  existingId: string | null;
+}
+
+export interface AdminMenuImportSectionPreviewDTO {
+  line: number;
+  title: string;
+  description: string | null;
+  status: AdminMenuImportStatus;
+  changes: string[];
+  existingId: string | null;
+  items: AdminMenuImportItemPreviewDTO[];
+}
+
+export interface AdminMenuImportResponseDTO {
+  dryRun: boolean;
+  applied: boolean;
+  valid: boolean;
+  errors: { line: number; message: string }[];
+  sections: AdminMenuImportSectionPreviewDTO[];
+  missing: {
+    sections: { id: string; title: string }[];
+    items: { id: string; name: string; sectionTitle: string }[];
+  };
+  deactivateMissing: boolean;
+  summary: {
+    sectionsCreated: number;
+    sectionsUpdated: number;
+    sectionsUnchanged: number;
+    itemsCreated: number;
+    itemsUpdated: number;
+    itemsUnchanged: number;
+    sectionsDeactivated: number;
+    itemsDeactivated: number;
+  };
+}

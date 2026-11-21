@@ -10,10 +10,75 @@ import type {
   AdminNoticeItemDetailDTO,
   AdminNoticeListResponseDTO,
 } from '../contracts/index.js';
+import {
+  MENU_SECTION_TITLE_MAX,
+  MENU_SECTION_DESCRIPTION_MAX,
+  MENU_ITEM_NAME_MAX,
+  MENU_ITEM_DESCRIPTION_MAX,
+} from '../contracts/index.js';
 import { Monogram } from '../components/Monogram.js';
+import { MenuPasteModal } from '../components/admin/MenuPasteModal.js';
 import { apiFetch } from '../lib/api.js';
+import { readApiFormError } from '../lib/apiErrors.js';
 
 const POLLING_INTERVAL_MS = 25000;
+
+/** Contador de caracteres que fica vermelho ao passar do limite aceito pela API. */
+const CharCount: React.FC<{ value: string; max: number; id?: string }> = ({ value, max, id }) => {
+  const len = value.trim().length;
+  return (
+    <span id={id} className={`admin-char-count ${len > max ? 'admin-char-count--over' : ''}`} aria-live="polite">
+      {len}/{max}
+    </span>
+  );
+};
+
+/** Motivo da recusa logo abaixo do campo. */
+const FieldError: React.FC<{ id: string; message?: string }> = ({ id, message }) =>
+  message ? (
+    <p id={id} className="admin-field-error" role="alert">
+      {message}
+    </p>
+  ) : null;
+
+const MENU_LABELS: Record<string, string> = {
+  title: 'Título da seção',
+  name: 'Nome do item',
+  description: 'Descrição',
+  sortOrder: 'Ordem',
+};
+
+/** Mesmas regras da API, para avisar antes de enviar. */
+function validateMenuForm(
+  kind: 'section' | 'item',
+  form: { title?: string; name?: string; description: string; sortOrder: number }
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const desc = form.description.trim();
+  if (kind === 'section') {
+    const title = (form.title ?? '').trim();
+    if (!title) errors.title = 'O título da seção é obrigatório';
+    else if (title.length > MENU_SECTION_TITLE_MAX)
+      errors.title = `O título da seção pode ter no máximo ${MENU_SECTION_TITLE_MAX} caracteres (agora tem ${title.length})`;
+    if (desc.length > MENU_SECTION_DESCRIPTION_MAX)
+      errors.description = `A descrição da seção pode ter no máximo ${MENU_SECTION_DESCRIPTION_MAX} caracteres (agora tem ${desc.length}). Para listar bebidas ou pratos, cadastre cada um como item ou use Colar cardápio`;
+  } else {
+    const name = (form.name ?? '').trim();
+    if (!name) errors.name = 'O nome do item é obrigatório';
+    else if (name.length > MENU_ITEM_NAME_MAX)
+      errors.name = `O nome do item pode ter no máximo ${MENU_ITEM_NAME_MAX} caracteres (agora tem ${name.length})`;
+    if (desc.length > MENU_ITEM_DESCRIPTION_MAX)
+      errors.description = `A descrição do item pode ter no máximo ${MENU_ITEM_DESCRIPTION_MAX} caracteres (agora tem ${desc.length})`;
+  }
+  if (!Number.isInteger(form.sortOrder)) errors.sortOrder = 'A ordem precisa ser um número inteiro';
+  return errors;
+}
+
+function describeFieldErrors(errors: Record<string, string>): string {
+  return `Não foi possível salvar. ${Object.entries(errors)
+    .map(([field, msg]) => `${MENU_LABELS[field] ?? field}: ${msg}`)
+    .join('; ')}.`;
+}
 
 /* ──────────────────────────────────────────────
    Icons
@@ -184,7 +249,9 @@ export const AdminContentPage: React.FC = () => {
   });
 
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formSubmitting, setFormSubmitting] = useState(false);
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
 
   // Toast feedback helper
   const showToast = (msg: string) => {
@@ -445,6 +512,7 @@ export const AdminContentPage: React.FC = () => {
       active: true,
     });
     setFormError(null);
+    setFieldErrors({});
     setSectionModalOpen(true);
   };
 
@@ -457,15 +525,19 @@ export const AdminContentPage: React.FC = () => {
       active: sec.active,
     });
     setFormError(null);
+    setFieldErrors({});
     setSectionModalOpen(true);
   };
 
   const handleSaveSection = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sectionForm.title.trim()) {
-      setFormError('O título da seção é obrigatório.');
+    const localErrors = validateMenuForm('section', sectionForm);
+    setFieldErrors(localErrors);
+    if (Object.keys(localErrors).length > 0) {
+      setFormError(describeFieldErrors(localErrors));
       return;
     }
+    setFormError(null);
 
     setFormSubmitting(true);
     try {
@@ -492,8 +564,9 @@ export const AdminContentPage: React.FC = () => {
         showToast(editingSection ? 'Seção atualizada!' : 'Seção cadastrada com sucesso!');
         fetchData(false);
       } else {
-        const err = await res.json().catch(() => ({}));
-        setFormError(err.error || 'Erro ao salvar seção do cardápio.');
+        const apiError = await readApiFormError(res, 'Não foi possível salvar a seção do cardápio.');
+        setFieldErrors(apiError.fields);
+        setFormError(apiError.message);
       }
     } catch {
       setFormError('Erro de conexão ao salvar seção.');
@@ -546,6 +619,7 @@ export const AdminContentPage: React.FC = () => {
       active: true,
     });
     setFormError(null);
+    setFieldErrors({});
     setItemModalOpen(true);
   };
 
@@ -559,15 +633,19 @@ export const AdminContentPage: React.FC = () => {
       active: item.active,
     });
     setFormError(null);
+    setFieldErrors({});
     setItemModalOpen(true);
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemForm.name.trim()) {
-      setFormError('O nome do item é obrigatório.');
+    const localErrors = validateMenuForm('item', itemForm);
+    setFieldErrors(localErrors);
+    if (Object.keys(localErrors).length > 0) {
+      setFormError(describeFieldErrors(localErrors));
       return;
     }
+    setFormError(null);
 
     setFormSubmitting(true);
     try {
@@ -594,8 +672,9 @@ export const AdminContentPage: React.FC = () => {
         showToast(editingItem ? 'Item atualizado!' : 'Item cadastrado no cardápio!');
         fetchData(false);
       } else {
-        const err = await res.json().catch(() => ({}));
-        setFormError(err.error || 'Erro ao salvar item.');
+        const apiError = await readApiFormError(res, 'Não foi possível salvar o item do cardápio.');
+        setFieldErrors(apiError.fields);
+        setFormError(apiError.message);
       }
     } catch {
       setFormError('Erro de conexão ao salvar item.');
@@ -1079,14 +1158,23 @@ export const AdminContentPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn--primary"
-                    onClick={openCreateSectionModal}
-                  >
-                    <PlusIcon />
-                    <span>Nova Seção Gastronômica</span>
-                  </button>
+                  <div className="admin-section-header__actions">
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--outline"
+                      onClick={() => setPasteModalOpen(true)}
+                    >
+                      <span>Colar cardápio</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn--primary"
+                      onClick={openCreateSectionModal}
+                    >
+                      <PlusIcon />
+                      <span>Nova Seção Gastronômica</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Estatísticas de Cardápio */}
@@ -1115,13 +1203,22 @@ export const AdminContentPage: React.FC = () => {
                     <p className="admin-empty-state__desc">
                       Organize as seções gastronômicas (ex: Boas-vindas, Entradas, Pratos Principais, Sobremesas, Bebidas) e seus itens.
                     </p>
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn--primary"
-                      onClick={openCreateSectionModal}
-                    >
-                      <PlusIcon /> Criar primeira seção
-                    </button>
+                    <div className="admin-section-header__actions">
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--primary"
+                        onClick={() => setPasteModalOpen(true)}
+                      >
+                        Colar cardápio
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn--outline"
+                        onClick={openCreateSectionModal}
+                      >
+                        <PlusIcon /> Criar seção manualmente
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="admin-menu-sections-list">
@@ -1569,6 +1666,18 @@ export const AdminContentPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal: Colar cardápio */}
+      {pasteModalOpen && (
+        <MenuPasteModal
+          onClose={() => setPasteModalOpen(false)}
+          onSaved={(message) => {
+            setPasteModalOpen(false);
+            showToast(message);
+            fetchData(false);
+          }}
+        />
+      )}
+
       {/* Modal: Seção de Cardápio */}
       {sectionModalOpen && (
         <div className="admin-modal-backdrop animate-fade-in" role="dialog" aria-modal="true">
@@ -1595,36 +1704,53 @@ export const AdminContentPage: React.FC = () => {
               )}
 
               <div className="admin-form-group">
-                <label className="admin-label">Título da Seção *</label>
+                <label className="admin-label" htmlFor="section-title">Título da Seção *</label>
                 <input
+                  id="section-title"
                   type="text"
-                  className="admin-input"
+                  className={`admin-input ${fieldErrors.title ? 'admin-input--invalid' : ''}`}
                   value={sectionForm.title}
                   onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
-                  placeholder="Ex: Boas-vindas, Entradas, Pratos Principais, Sobremesas, Bebidas"
+                  placeholder="Ex: Entrada, Sobremesas, Bebidas · Drinks"
+                  aria-invalid={Boolean(fieldErrors.title)}
+                  aria-describedby="section-title-hint section-title-error"
                   required
                 />
+                <p id="section-title-hint" className="admin-field-hint">
+                  Use “Bebidas · Drinks” para agrupar a seção dentro de Bebidas na tela do convidado.
+                </p>
+                <FieldError id="section-title-error" message={fieldErrors.title} />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Descrição da Seção</label>
+                <div className="admin-label-row">
+                  <label className="admin-label" htmlFor="section-description">Descrição da Seção</label>
+                  <CharCount value={sectionForm.description} max={MENU_SECTION_DESCRIPTION_MAX} id="section-description-count" />
+                </div>
                 <textarea
-                  className="admin-textarea"
+                  id="section-description"
+                  className={`admin-textarea ${fieldErrors.description ? 'admin-input--invalid' : ''}`}
                   value={sectionForm.description}
                   onChange={(e) => setSectionForm({ ...sectionForm, description: e.target.value })}
-                  placeholder="Ex: Seleção de antepastos italianos e pães artesanais"
-                  rows={2}
+                  placeholder="Ex: Open bar · 8 horas"
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  aria-describedby="section-description-count section-description-error"
+                  rows={5}
                 />
+                <FieldError id="section-description-error" message={fieldErrors.description} />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Ordem de Apresentação</label>
+                <label className="admin-label" htmlFor="section-order">Ordem de Apresentação</label>
                 <input
+                  id="section-order"
                   type="number"
-                  className="admin-input"
+                  className={`admin-input ${fieldErrors.sortOrder ? 'admin-input--invalid' : ''}`}
                   value={sectionForm.sortOrder}
                   onChange={(e) => setSectionForm({ ...sectionForm, sortOrder: parseInt(e.target.value, 10) || 0 })}
+                  aria-invalid={Boolean(fieldErrors.sortOrder)}
                 />
+                <FieldError id="section-order-error" message={fieldErrors.sortOrder} />
               </div>
 
               <div className="admin-form-checkboxes">
@@ -1685,36 +1811,50 @@ export const AdminContentPage: React.FC = () => {
               )}
 
               <div className="admin-form-group">
-                <label className="admin-label">Nome do Item / Prato *</label>
+                <label className="admin-label" htmlFor="item-name">Nome do Item / Prato *</label>
                 <input
+                  id="item-name"
                   type="text"
-                  className="admin-input"
+                  className={`admin-input ${fieldErrors.name ? 'admin-input--invalid' : ''}`}
                   value={itemForm.name}
                   onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
-                  placeholder="Ex: Risoto de Alho-Poró com Parmesão"
+                  placeholder="Ex: Negroni"
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  aria-describedby="item-name-error"
                   required
                 />
+                <FieldError id="item-name-error" message={fieldErrors.name} />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Descrição / Ingredientes / Harmonização</label>
+                <div className="admin-label-row">
+                  <label className="admin-label" htmlFor="item-description">Descrição / Ingredientes</label>
+                  <CharCount value={itemForm.description} max={MENU_ITEM_DESCRIPTION_MAX} id="item-description-count" />
+                </div>
                 <textarea
-                  className="admin-textarea"
+                  id="item-description"
+                  className={`admin-textarea ${fieldErrors.description ? 'admin-input--invalid' : ''}`}
                   value={itemForm.description}
                   onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                  placeholder="Ex: Arroz arbóreo, alho-poró fresco e queijo parmesão maturado 12 meses"
-                  rows={2}
+                  placeholder="Ex: Gin, Campari Bitter, vermute tinto e laranja"
+                  aria-invalid={Boolean(fieldErrors.description)}
+                  aria-describedby="item-description-count item-description-error"
+                  rows={5}
                 />
+                <FieldError id="item-description-error" message={fieldErrors.description} />
               </div>
 
               <div className="admin-form-group">
-                <label className="admin-label">Ordem</label>
+                <label className="admin-label" htmlFor="item-order">Ordem</label>
                 <input
+                  id="item-order"
                   type="number"
-                  className="admin-input"
+                  className={`admin-input ${fieldErrors.sortOrder ? 'admin-input--invalid' : ''}`}
                   value={itemForm.sortOrder}
                   onChange={(e) => setItemForm({ ...itemForm, sortOrder: parseInt(e.target.value, 10) || 0 })}
+                  aria-invalid={Boolean(fieldErrors.sortOrder)}
                 />
+                <FieldError id="item-order-error" message={fieldErrors.sortOrder} />
               </div>
 
               <div className="admin-form-checkboxes">

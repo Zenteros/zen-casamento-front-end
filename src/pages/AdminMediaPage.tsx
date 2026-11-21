@@ -5,6 +5,8 @@ import type {
   AdminMediaCountsDTO,
   AdminPaginationDTO,
   AdminUserDTO,
+  AdminDeleteMediaResponseDTO,
+  AdminStorageDiskDTO,
 } from '../contracts/index.js';
 import { Monogram } from '../components/Monogram.js';
 import { apiFetch, buildApiUrl } from '../lib/api.js';
@@ -33,6 +35,45 @@ const ClockIcon: React.FC = () => (
     <polyline points="12 6 12 12 16 14" />
   </svg>
 );
+
+const TrashIcon: React.FC = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
+
+const DownloadIcon: React.FC = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const originalDownloadUrl = (id: string) =>
+  buildApiUrl(`/api/v1/admin/media/${id}/file?variant=original&download=1`);
+
+/** Formata bytes em unidades binárias, como o `df -h` (G = GiB). */
+const formatDiskBytes = (bytes: number) => {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = unit >= 3 ? 1 : 0;
+  return `${value.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${units[unit]}`;
+};
+
+type AdminNotice = {
+  tone: 'success' | 'warning' | 'error';
+  message: string;
+  retryItem?: AdminMediaItemDTO;
+};
 
 const LogoutIcon: React.FC = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -86,7 +127,46 @@ export const AdminMediaPage: React.FC = () => {
   const [feedback, setFeedback] = useState<{ id: string; message: string; previousStatus: string; item: AdminMediaItemDTO } | null>(null);
   const [activeModalItem, setActiveModalItem] = useState<AdminMediaItemDTO | null>(null);
 
+  // Exclusão definitiva
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<AdminMediaItemDTO | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<AdminNotice | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
+
   const isPollingRef = useRef<boolean>(false);
+
+  // Espaço em disco da VM (sistema de arquivos da pasta de mídia)
+  const [disk, setDisk] = useState<AdminStorageDiskDTO | null>(null);
+  const [diskLoading, setDiskLoading] = useState<boolean>(false);
+  const [diskError, setDiskError] = useState<string | null>(null);
+
+  const fetchDisk = useCallback(async () => {
+    setDiskLoading(true);
+    setDiskError(null);
+    try {
+      const res = await apiFetch('/api/v1/admin/storage/disk', { method: 'GET', cache: 'no-store' });
+      if (res.status === 401) {
+        navigate('/admin/login', { replace: true });
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setDiskError(data?.error || 'Não foi possível medir o espaço em disco.');
+        return;
+      }
+      setDisk((await res.json()) as AdminStorageDiskDTO);
+    } catch {
+      setDiskError('Sem conexão com o servidor para medir o espaço em disco.');
+    } finally {
+      setDiskLoading(false);
+    }
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!checkingAuth) {
+      void fetchDisk();
+    }
+  }, [checkingAuth, fetchDisk]);
 
   // 1. Verificar Autenticação
   useEffect(() => {
@@ -144,6 +224,11 @@ export const AdminMediaPage: React.FC = () => {
         setItems(data.items || []);
         setCounts(data.counts || { pending: 0, approved: 0, rejected: 0, total: 0 });
         setPagination(data.pagination || { page: 1, limit: 20, totalItems: 0, totalPages: 1 });
+        // Se a página atual esvaziou (ex.: após excluir o último item), volta para a última existente
+        const serverTotalPages = data.pagination?.totalPages ?? 1;
+        if (currentPage > serverTotalPages) {
+          setCurrentPage(serverTotalPages);
+        }
       }
     } catch {
       // Silencia erros transitórios de rede no polling
@@ -273,6 +358,83 @@ export const AdminMediaPage: React.FC = () => {
     }
   };
 
+  // 6. Exclusão definitiva (registro + original + derivados). Rejeitar continua só tirando do telão.
+  const showNotice = useCallback((next: AdminNotice) => {
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    setFeedback(null);
+    setNotice(next);
+    if (next.tone === 'success') {
+      noticeTimerRef.current = window.setTimeout(() => setNotice(null), 6000);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!confirmDeleteItem) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deletingId) setConfirmDeleteItem(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmDeleteItem, deletingId]);
+
+  const handleDelete = async (item: AdminMediaItemDTO) => {
+    if (deletingId) return;
+    setDeletingId(item.id);
+
+    try {
+      const res = await apiFetch(`/api/v1/admin/media/${encodeURIComponent(item.id)}`, {
+        method: 'DELETE',
+      });
+
+      if (res.status === 401) {
+        navigate('/admin/login', { replace: true });
+        return;
+      }
+
+      let data: (Partial<AdminDeleteMediaResponseDTO> & { error?: string }) | null = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok || !data?.outcome) {
+        showNotice({
+          tone: 'error',
+          message: data?.error || `Não foi possível excluir “${item.originalFileName}”. Nada foi removido; tente novamente.`,
+          retryItem: item,
+        });
+        return;
+      }
+
+      setConfirmDeleteItem(null);
+      if (activeModalItem?.id === item.id) setActiveModalItem(null);
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+
+      showNotice({
+        tone: data.outcome === 'partial' ? 'warning' : 'success',
+        message: data.message || 'Mídia excluída.',
+        retryItem: data.outcome === 'partial' ? item : undefined,
+      });
+
+      await fetchMedia(false);
+    } catch {
+      showNotice({
+        tone: 'error',
+        message: `Sem conexão com o servidor. Não foi possível confirmar a exclusão de “${item.originalFileName}”; tente novamente.`,
+        retryItem: item,
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -377,6 +539,75 @@ export const AdminMediaPage: React.FC = () => {
       </header>
 
       <main className="admin-main">
+        {/* ══════════════════════════════════════════════════════
+            1.1 ESPAÇO DA VM (sistema de arquivos da pasta de mídia)
+            ══════════════════════════════════════════════════════ */}
+        <section className="admin-disk-card" aria-label="Espaço em disco da VM" aria-busy={diskLoading}>
+          <div className="admin-disk-card__header">
+            <div className="admin-disk-card__titles">
+              <h2 className="admin-disk-card__title">Espaço da VM</h2>
+              {disk && (
+                <span className="admin-disk-card__subtitle" title={disk.path}>
+                  {disk.mountPoint ? `Montado em ${disk.mountPoint}` : disk.path}
+                  {disk.fsType ? ` · ${disk.fsType}` : ''}
+                  {' · medido às '}
+                  {new Intl.DateTimeFormat('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                  }).format(new Date(disk.measuredAt))}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="admin-btn admin-disk-card__refresh"
+              onClick={() => void fetchDisk()}
+              disabled={diskLoading}
+              aria-label="Atualizar espaço em disco"
+            >
+              <RefreshIcon spinning={diskLoading} />
+              <span>Atualizar</span>
+            </button>
+          </div>
+
+          {diskError ? (
+            <p className="admin-disk-card__error" role="alert">{diskError}</p>
+          ) : disk ? (
+            <>
+              <dl className="admin-disk-card__stats">
+                <div className="admin-disk-card__stat">
+                  <dt>Total</dt>
+                  <dd>{formatDiskBytes(disk.totalBytes)}</dd>
+                </div>
+                <div className="admin-disk-card__stat">
+                  <dt>Usado</dt>
+                  <dd>{formatDiskBytes(disk.usedBytes)}</dd>
+                </div>
+                <div className="admin-disk-card__stat">
+                  <dt>Livre</dt>
+                  <dd>{formatDiskBytes(disk.freeBytes)}</dd>
+                </div>
+              </dl>
+              <div
+                className={`admin-disk-card__bar ${disk.usedPercent >= 90 ? 'admin-disk-card__bar--critical' : disk.usedPercent >= 75 ? 'admin-disk-card__bar--warning' : ''}`}
+                role="progressbar"
+                aria-label="Ocupação do disco"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={disk.usedPercent}
+                aria-valuetext={`${disk.usedPercent}% ocupado`}
+              >
+                <span className="admin-disk-card__bar-fill" style={{ width: `${Math.min(100, disk.usedPercent)}%` }} />
+              </div>
+              <p className="admin-disk-card__percent">{disk.usedPercent}% ocupado</p>
+            </>
+          ) : (
+            <p className="admin-disk-card__loading">Medindo espaço em disco…</p>
+          )}
+        </section>
+
         {/* ══════════════════════════════════════════════════════
             2. BARRA DE CONTADORES EM TEMPO REAL
             ══════════════════════════════════════════════════════ */}
@@ -501,7 +732,34 @@ export const AdminMediaPage: React.FC = () => {
         {/* ══════════════════════════════════════════════════════
             4. FEEDBACK TOAST FLUTUANTE COM UNDO
             ══════════════════════════════════════════════════════ */}
-        {feedback && (
+        {notice && (
+          <div
+            className={`admin-feedback-toast admin-feedback-toast--${notice.tone} animate-slide-up`}
+            role={notice.tone === 'error' ? 'alert' : 'status'}
+          >
+            <span className="admin-feedback-toast__text">{notice.message}</span>
+            {notice.retryItem && (
+              <button
+                type="button"
+                className="admin-feedback-toast__undo"
+                disabled={Boolean(deletingId)}
+                onClick={() => notice.retryItem && handleDelete(notice.retryItem)}
+              >
+                Tentar novamente
+              </button>
+            )}
+            <button
+              type="button"
+              className="admin-feedback-toast__close"
+              onClick={() => setNotice(null)}
+              aria-label="Fechar aviso"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {feedback && !notice && (
           <div className="admin-feedback-toast animate-slide-up" role="status">
             <span className="admin-feedback-toast__text">{feedback.message}</span>
             <button
@@ -547,7 +805,7 @@ export const AdminMediaPage: React.FC = () => {
               const isRejected = item.status === 'REJECTED';
               const isProcessingFailed = item.processingStatus === 'FAILED';
               const isProcessingUnsupported = item.processingStatus === 'UNSUPPORTED';
-              const isActionRunning = actionInProgressId === item.id;
+              const isActionRunning = actionInProgressId === item.id || deletingId === item.id;
 
 
               return (
@@ -588,6 +846,7 @@ export const AdminMediaPage: React.FC = () => {
                     {/* Badge de Tipo */}
                     <span className="admin-media-card__type-badge">
                       {item.type === 'PHOTO' ? '📷 Foto' : '🎬 Vídeo'}
+                      {item.visibility === 'PRIVATE' ? ' · 🔒 Privada' : ''}
                     </span>
 
                     {/* Badge de Status Técnico se houver atenção */}
@@ -651,6 +910,28 @@ export const AdminMediaPage: React.FC = () => {
                       >
                         <CrossIcon />
                         <span>{isRejected ? 'Rejeitada' : 'Rejeitar'}</span>
+                      </button>
+
+                      <a
+                        className="admin-action-btn admin-action-btn--download"
+                        href={originalDownloadUrl(item.id)}
+                        download={item.originalFileName}
+                        aria-label={`Baixar original de ${item.originalFileName}`}
+                        title="Baixar o arquivo original, sem compressão"
+                      >
+                        <DownloadIcon />
+                        <span>Baixar original</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        className="admin-action-btn admin-action-btn--delete"
+                        disabled={isActionRunning || Boolean(deletingId)}
+                        onClick={() => setConfirmDeleteItem(item)}
+                        aria-label={`Excluir definitivamente ${item.originalFileName}`}
+                      >
+                        <TrashIcon />
+                        <span>{deletingId === item.id ? 'Excluindo…' : 'Excluir'}</span>
                       </button>
                     </div>
                   </div>
@@ -754,7 +1035,85 @@ export const AdminMediaPage: React.FC = () => {
                   <CrossIcon />
                   <span>Rejeitar</span>
                 </button>
+
+                <a
+                  className="admin-action-btn admin-action-btn--download"
+                  href={originalDownloadUrl(activeModalItem.id)}
+                  download={activeModalItem.originalFileName}
+                  aria-label={`Baixar original de ${activeModalItem.originalFileName}`}
+                >
+                  <DownloadIcon />
+                  <span>Baixar original</span>
+                </a>
+
+                <button
+                  type="button"
+                  className="admin-action-btn admin-action-btn--delete"
+                  disabled={Boolean(deletingId)}
+                  onClick={() => setConfirmDeleteItem(activeModalItem)}
+                >
+                  <TrashIcon />
+                  <span>Excluir</span>
+                </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          8. CONFIRMAÇÃO DE EXCLUSÃO DEFINITIVA
+          ══════════════════════════════════════════════════════ */}
+      {confirmDeleteItem && (
+        <div
+          className="admin-modal-backdrop admin-modal-backdrop--confirm animate-fade-in"
+          onClick={() => !deletingId && setConfirmDeleteItem(null)}
+        >
+          <div
+            className="admin-modal-content admin-confirm-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="admin-confirm-delete-title"
+            aria-describedby="admin-confirm-delete-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="admin-confirm-dialog__body">
+              <h3 id="admin-confirm-delete-title" className="admin-modal-title">
+                Excluir {confirmDeleteItem.type === 'VIDEO' ? 'vídeo' : 'foto'} definitivamente?
+              </h3>
+              <p className="admin-confirm-dialog__filename" title={confirmDeleteItem.originalFileName}>
+                {confirmDeleteItem.originalFileName}
+              </p>
+              <p className="admin-confirm-dialog__meta">
+                {confirmDeleteItem.familyTitle} &bull; {formatDateTime(confirmDeleteItem.uploadedAt)} &bull;{' '}
+                {confirmDeleteItem.visibility === 'PRIVATE' ? 'Privada' : 'Pública'} &bull;{' '}
+                {formatFileSize(confirmDeleteItem.sizeBytes)}
+              </p>
+              <p id="admin-confirm-delete-desc" className="admin-confirm-dialog__desc">
+                O arquivo original e as versões geradas serão apagados, e o registro sai da galeria e do
+                telão. Esta ação não pode ser desfeita. Para só tirar do telão e manter o arquivo, use
+                Rejeitar.
+              </p>
+            </div>
+            <div className="admin-modal-footer admin-confirm-dialog__footer">
+              <button
+                type="button"
+                className="admin-btn admin-confirm-dialog__cancel"
+                onClick={() => setConfirmDeleteItem(null)}
+                disabled={Boolean(deletingId)}
+                autoFocus
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="admin-action-btn admin-action-btn--delete-confirm"
+                onClick={() => handleDelete(confirmDeleteItem)}
+                disabled={Boolean(deletingId)}
+              >
+                <TrashIcon />
+                <span>{deletingId === confirmDeleteItem.id ? 'Excluindo…' : 'Excluir definitivamente'}</span>
+              </button>
             </div>
           </div>
         </div>

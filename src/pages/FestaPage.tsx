@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Monogram } from '../components/Monogram.js';
 import { MediaUploadCard } from '../components/MediaUploadCard.js';
 import { apiFetch } from '../lib/api.js';
@@ -72,7 +73,19 @@ export const FestaPage: React.FC = () => {
           </div>
         )}
 
-        {pass.status === 'ready' && <MediaUploadCard variant="standalone" />}
+        {pass.status === 'ready' && (
+          <>
+            <Link to="/festa/cardapio" state={{ backTo: '/festa' }} className="festa-page__menu-link">
+              <span className="festa-page__menu-link-icon" aria-hidden="true">🍽️</span>
+              <span className="festa-page__menu-link-text">
+                <strong>Ver cardápio e bebidas</strong>
+                <span>Menu, open bar e drinks da festa</span>
+              </span>
+              <span className="festa-page__menu-link-arrow" aria-hidden="true">→</span>
+            </Link>
+            <MediaUploadCard variant="standalone" />
+          </>
+        )}
 
         {pass.status === 'not-event-day' && (
           <div className="festa-page__status">

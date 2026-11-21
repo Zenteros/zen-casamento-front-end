@@ -9,6 +9,7 @@ import { AdminMediaPage } from './pages/AdminMediaPage.js';
 import { AdminContentPage } from './pages/AdminContentPage.js';
 import { ScreenPage } from './pages/ScreenPage.js';
 import { FestaPage } from './pages/FestaPage.js';
+import { CardapioPage } from './pages/CardapioPage.js';
 
 export const App: React.FC = () => {
   return (
@@ -16,6 +17,8 @@ export const App: React.FC = () => {
       <Routes>
         {/* QR genérico dos cartões das mesas */}
         <Route path="/festa" element={<FestaPage />} />
+        <Route path="/festa/cardapio" element={<CardapioPage />} />
+        <Route path="/cardapio" element={<Navigate to="/festa/cardapio" replace />} />
         <Route path="/fotos" element={<Navigate to="/festa" replace />} />
         <Route path="/screen" element={<ScreenPage />} />
         <Route path="/telao" element={<ScreenPage />} />

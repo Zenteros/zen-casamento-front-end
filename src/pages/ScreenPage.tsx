@@ -5,6 +5,13 @@ import { buildApiUrl, apiFetch } from '../lib/api.js';
 const SLIDE_DURATION_MS = 10000; // 10 segundos por foto
 const POLLING_INTERVAL_MS = 10000; // 10 segundos de polling
 const CURSOR_HIDE_DELAY_MS = 3000; // 3 segundos para ocultar cursor
+const FADE_DURATION_MS = 600; // Duração do fade de transição
+// Vídeo que não começa ou trava sem progresso por esse tempo é pulado
+const VIDEO_STALL_TIMEOUT_MS = 15000;
+// Com um único vídeo no feed e falha de reprodução, espera antes de tentar de novo
+const VIDEO_RETRY_DELAY_MS = 10000;
+// Pedido explícito de vídeos: sem `types`, a API devolve só fotos (abas antigas do telão)
+const FEED_PATH = '/api/v1/screen/media?limit=150&types=PHOTO,VIDEO';
 
 const FullscreenIcon: React.FC = () => (
   <svg
@@ -47,10 +54,17 @@ export const ScreenPage: React.FC = () => {
   const [isCursorHidden, setIsCursorHidden] = useState<boolean>(false);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
 
+  // Incrementa a cada troca de slide; força remontar o <video> quando o mesmo item repete
+  const [playCycle, setPlayCycle] = useState<number>(0);
+
   const cursorTimerRef = useRef<number | null>(null);
   const slideTimerRef = useRef<number | null>(null);
   const itemsRef = useRef<ScreenMediaItemDTO[]>([]);
   const currentIndexRef = useRef<number>(0);
+  const advancingRef = useRef<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoFinishedRef = useRef<string | null>(null);
+  const videoProgressAtRef = useRef<number>(0);
 
   itemsRef.current = items;
   currentIndexRef.current = currentIndex;
@@ -62,7 +76,7 @@ export const ScreenPage: React.FC = () => {
   // 1. Polling do Feed do Telão via cookie zen_screen_session
   const fetchFeed = useCallback(async () => {
     try {
-      const res = await apiFetch('/api/v1/screen/media?limit=150', {
+      const res = await apiFetch(FEED_PATH, {
         method: 'GET',
       });
 
@@ -74,23 +88,26 @@ export const ScreenPage: React.FC = () => {
       if (res.ok) {
         setAuthError(null);
         const data = await res.json();
-        const newItems: ScreenMediaItemDTO[] = data.items || [];
+        const newItems: ScreenMediaItemDTO[] = (data.items || []).filter(
+          (i: ScreenMediaItemDTO) => i.type === 'PHOTO' || i.type === 'VIDEO'
+        );
 
-        setItems((prevItems) => {
-          // Se lista de itens mudou
-          const prevIds = prevItems.map((i) => i.id).join(',');
-          const newIds = newItems.map((i) => i.id).join(',');
+        const prevItems = itemsRef.current;
+        const prevIds = prevItems.map((i) => i.id).join(',');
+        const newIds = newItems.map((i) => i.id).join(',');
 
-          if (prevIds !== newIds) {
-            // Se o item atualmente ativo foi revogado/removido, reajusta índice com segurança
-            const currentItem = prevItems[currentIndexRef.current];
-            if (currentItem && !newItems.some((i) => i.id === currentItem.id)) {
-              setCurrentIndex(0);
-            }
-            return newItems;
-          }
-          return prevItems;
-        });
+        if (prevIds !== newIds) {
+          // Mantém o item em exibição (um vídeo em andamento não é interrompido quando a
+          // janela das 150 desliza). Se ele foi revogado/excluído, segue para o que ocupou a posição.
+          const currentItem = prevItems[currentIndexRef.current];
+          const keptIndex = currentItem ? newItems.findIndex((i) => i.id === currentItem.id) : -1;
+          const nextIndex =
+            keptIndex >= 0 ? keptIndex : Math.min(currentIndexRef.current, Math.max(0, newItems.length - 1));
+          itemsRef.current = newItems;
+          currentIndexRef.current = nextIndex;
+          setItems(newItems);
+          setCurrentIndex(nextIndex);
+        }
       }
     } catch {
       // Falhas de rede transitórias são silenciadas para manter a última foto válida na tela
@@ -141,37 +158,94 @@ export const ScreenPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchFeed]);
 
-  // 3. Transição automática de slides (Slideshow a cada 10 segundos)
-  useEffect(() => {
-    if (items.length <= 1) return;
+  // 3. Avanço de slide com fade (usado pelo timer das fotos e pelo fim/falha dos vídeos)
+  const advance = useCallback(() => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
+    setIsTransitioning(true);
+    window.setTimeout(() => {
+      const total = itemsRef.current.length;
+      setCurrentIndex((prev) => (total > 0 ? (prev + 1) % total : 0));
+      setPlayCycle((c) => c + 1);
+      setIsTransitioning(false);
+      advancingRef.current = false;
+    }, FADE_DURATION_MS);
+  }, []);
 
-    // Pré-carrega a próxima imagem
-    const nextIdx = (currentIndex + 1) % items.length;
-    const nextItem = items[nextIdx];
-    if (nextItem) {
+  const activeItem = items[currentIndex];
+  const activeId = activeItem?.id;
+  const activeIsVideo = activeItem?.type === 'VIDEO';
+  const hasMultipleItems = items.length > 1;
+
+  // 3.1 Fotos: 10 segundos cada. Vídeos não usam timer; avançam ao terminar ou falhar.
+  useEffect(() => {
+    if (!activeId || activeIsVideo || !hasMultipleItems) return;
+
+    // Pré-carrega a próxima foto (vídeos carregam ao entrar em cena)
+    const list = itemsRef.current;
+    const nextItem = list[(currentIndexRef.current + 1) % list.length];
+    if (nextItem && nextItem.type === 'PHOTO') {
       const img = new Image();
       img.crossOrigin = 'use-credentials';
       img.src = getMediaUrl(nextItem.id);
     }
 
-    if (slideTimerRef.current) {
-      clearTimeout(slideTimerRef.current);
-    }
-
-    slideTimerRef.current = window.setTimeout(() => {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % itemsRef.current.length);
-        setIsTransitioning(false);
-      }, 600); // Duração do fade de transição
-    }, SLIDE_DURATION_MS);
+    slideTimerRef.current = window.setTimeout(advance, SLIDE_DURATION_MS);
 
     return () => {
       if (slideTimerRef.current) {
         clearTimeout(slideTimerRef.current);
       }
     };
-  }, [currentIndex, items, getMediaUrl]);
+  }, [activeId, activeIsVideo, hasMultipleItems, playCycle, advance, getMediaUrl]);
+
+  // 3.2 Vídeos: reprodução automática muda, fim -> próximo, falha/travamento -> próximo
+  const videoKey = activeIsVideo && activeId ? `${activeId}:${playCycle}` : null;
+
+  const finishVideo = useCallback(
+    (reason: 'ended' | 'failed') => {
+      if (!videoKey || videoFinishedRef.current === videoKey) return;
+      videoFinishedRef.current = videoKey;
+
+      if (itemsRef.current.length > 1) {
+        advance();
+        return;
+      }
+      // Único item do feed: repete ao terminar; se falhou, tenta de novo depois de um intervalo
+      window.setTimeout(() => setPlayCycle((c) => c + 1), reason === 'ended' ? 0 : VIDEO_RETRY_DELAY_MS);
+    },
+    [videoKey, advance]
+  );
+
+  const markVideoProgress = useCallback(() => {
+    videoProgressAtRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    if (!videoKey) return;
+    videoProgressAtRef.current = Date.now();
+
+    const video = videoRef.current;
+    if (video) {
+      video.muted = true; // garante autoplay sem gesto do usuário
+      const playAttempt = video.play();
+      if (playAttempt) {
+        playAttempt.catch((err: unknown) => {
+          // AbortError: o elemento saiu de cena antes de começar; não é falha do vídeo
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          finishVideo('failed');
+        });
+      }
+    }
+
+    const watchdog = window.setInterval(() => {
+      if (Date.now() - videoProgressAtRef.current > VIDEO_STALL_TIMEOUT_MS) {
+        finishVideo('failed');
+      }
+    }, 2000);
+
+    return () => window.clearInterval(watchdog);
+  }, [videoKey, finishVideo]);
 
   // 4. Controle de Inatividade do Cursor
   const handleMouseMove = useCallback(() => {
@@ -216,8 +290,6 @@ export const ScreenPage: React.FC = () => {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
-
-  const activeItem = items[currentIndex];
 
   return (
     <div
@@ -295,7 +367,7 @@ export const ScreenPage: React.FC = () => {
            ══════════════════════════════════════════════════════════════ */
         <div className="screen-stage">
           {/* Fundo derivado da própria foto com blur suave para proporções não-16:9 */}
-          {activeItem && (
+          {activeItem && !activeIsVideo && (
             <div
               className={`screen-backdrop ${isTransitioning ? 'screen-backdrop--fading' : ''}`}
               style={{
@@ -305,16 +377,36 @@ export const ScreenPage: React.FC = () => {
             />
           )}
 
-          {/* Imagem Principal Centralizada (object-fit: contain) */}
+          {/* Foto ou vídeo centralizado (object-fit: contain) */}
           {activeItem && (
             <div className={`screen-photo-container ${isTransitioning ? 'screen-photo-container--fading' : ''}`}>
-              <img
-                key={activeItem.id}
-                src={getMediaUrl(activeItem.id)}
-                alt="Registro da celebração de Patrício & Evandria"
-                className="screen-photo"
-                crossOrigin="use-credentials"
-              />
+              {activeIsVideo ? (
+                <video
+                  key={videoKey ?? activeItem.id}
+                  ref={videoRef}
+                  src={getMediaUrl(activeItem.id)}
+                  className="screen-photo screen-video"
+                  crossOrigin="use-credentials"
+                  muted
+                  autoPlay
+                  playsInline
+                  preload="auto"
+                  disablePictureInPicture
+                  aria-label="Vídeo da celebração de Patrício & Evandria"
+                  onPlaying={markVideoProgress}
+                  onTimeUpdate={markVideoProgress}
+                  onEnded={() => finishVideo('ended')}
+                  onError={() => finishVideo('failed')}
+                />
+              ) : (
+                <img
+                  key={activeItem.id}
+                  src={getMediaUrl(activeItem.id)}
+                  alt="Registro da celebração de Patrício & Evandria"
+                  className="screen-photo"
+                  crossOrigin="use-credentials"
+                />
+              )}
             </div>
           )}
 

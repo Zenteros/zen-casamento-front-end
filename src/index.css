@@ -4997,6 +4997,253 @@ html, body {
   cursor: not-allowed;
 }
 
+/* Linha 2 do card: Baixar original + Excluir lado a lado, com peso visual menor */
+.admin-action-btn--download {
+  background-color: #ffffff;
+  color: var(--color-text-main);
+  border-color: rgba(107, 92, 87, 0.22);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.admin-action-btn--download:hover {
+  border-color: var(--color-terracotta);
+  color: var(--color-terracotta);
+}
+
+.admin-action-btn--download:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+}
+
+/* Espaço da VM */
+.admin-disk-card {
+  background-color: var(--color-white);
+  border: 1.5px solid rgba(107, 92, 87, 0.12);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-disk-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-disk-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-disk-card__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.15rem;
+  color: var(--color-text-main);
+}
+
+.admin-disk-card__subtitle {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.admin-disk-card__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  flex-shrink: 0;
+}
+
+.admin-disk-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.admin-disk-card__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-disk-card__stat dt {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.admin-disk-card__stat dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text-main);
+  white-space: nowrap;
+}
+
+.admin-disk-card__bar {
+  height: 10px;
+  border-radius: 999px;
+  background-color: rgba(107, 92, 87, 0.12);
+  overflow: hidden;
+}
+
+.admin-disk-card__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: #15803d;
+  transition: width 0.4s ease;
+}
+
+.admin-disk-card__bar--warning .admin-disk-card__bar-fill {
+  background-color: #b45309;
+}
+
+.admin-disk-card__bar--critical .admin-disk-card__bar-fill {
+  background-color: #b91c1c;
+}
+
+.admin-disk-card__percent,
+.admin-disk-card__loading,
+.admin-disk-card__error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.admin-disk-card__error {
+  color: #b91c1c;
+}
+
+@media (max-width: 374px) {
+  .admin-disk-card__stat dd {
+    font-size: 1rem;
+  }
+}
+
+.admin-action-btn--delete {
+  background-color: #ffffff;
+  color: #7f1d1d;
+  border-color: #e7d5d0;
+  font-weight: 600;
+}
+
+.admin-action-btn--delete:hover:not(:disabled) {
+  background-color: #7f1d1d;
+  border-color: #7f1d1d;
+  color: #ffffff;
+}
+
+.admin-action-btn--delete-confirm {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+  color: #ffffff;
+}
+
+.admin-action-btn--delete-confirm:hover:not(:disabled) {
+  background-color: #7f1d1d;
+  border-color: #7f1d1d;
+}
+
+/* Confirmação de exclusão definitiva */
+.admin-modal-backdrop--confirm {
+  z-index: 160;
+}
+
+.admin-confirm-dialog {
+  max-width: 460px;
+}
+
+.admin-confirm-dialog__body {
+  padding: 1.25rem 1.25rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-confirm-dialog__filename {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f1b19;
+  background-color: #f7f2ef;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-confirm-dialog__meta {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b625d;
+}
+
+.admin-confirm-dialog__desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #3f3835;
+}
+
+.admin-confirm-dialog__footer {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.admin-confirm-dialog__cancel {
+  min-height: 48px;
+  padding: 0.6rem 1rem;
+}
+
+/* Variações do toast para resultado da exclusão */
+.admin-feedback-toast.admin-feedback-toast--success {
+  background-color: #14532d;
+}
+
+.admin-feedback-toast.admin-feedback-toast--warning {
+  background-color: #78350f;
+}
+
+.admin-feedback-toast.admin-feedback-toast--error {
+  background-color: #7f1d1d;
+}
+
+.admin-feedback-toast__close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.8;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.admin-feedback-toast__undo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ─── 8. Toast de Feedback Flutuante ─── */
 .admin-feedback-toast {
   position: fixed;
@@ -5404,6 +5651,10 @@ html, body {
   border-radius: 6px;
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.65);
   display: block;
+}
+
+.screen-video {
+  background-color: #000000;
 }
 
 /* ─── Marca d'água Romântica Discreta ─── */
@@ -9474,4 +9725,582 @@ html, body {
   text-underline-offset: 3px;
   cursor: pointer;
   padding: 0.35rem;
+}
+
+/* ══════════════════════════════════════════════════════
+   Painel — campos multilinha, erros por campo e "Colar cardápio"
+   ══════════════════════════════════════════════════════ */
+.admin-textarea {
+  width: 100%;
+  min-height: 8.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  font-family: var(--font-sans);
+  color: var(--color-text-main);
+  background-color: #ffffff;
+  border: 1.5px solid rgba(107, 92, 87, 0.2);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  resize: vertical;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.admin-textarea::placeholder,
+.admin-input::placeholder {
+  color: var(--color-text-light);
+}
+
+.admin-textarea:focus {
+  outline: none;
+  border-color: var(--color-terracotta);
+  box-shadow: 0 0 0 3px rgba(200, 109, 81, 0.15);
+}
+
+.admin-input--invalid,
+.admin-input--invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+}
+
+.admin-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-char-count {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-light);
+}
+
+.admin-char-count--over {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.admin-field-error {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #b91c1c;
+}
+
+.admin-field-hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.admin-section-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-menu-section-desc,
+.admin-menu-item-desc {
+  white-space: pre-line;
+}
+
+.menu-paste-modal {
+  max-width: 1080px;
+  max-height: min(94vh, 960px);
+}
+
+.menu-paste-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.menu-paste-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.menu-paste-help {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.menu-paste-help code {
+  font-size: 0.8rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--color-sand);
+  color: var(--color-text-main);
+}
+
+.menu-paste-textarea {
+  min-height: 22rem;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.menu-paste-preview {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--paper-warm);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.menu-paste-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  padding: 3rem 1rem;
+}
+
+.menu-paste-empty p {
+  margin: 0.25rem 0;
+}
+
+.menu-paste-stale {
+  background: #fef3c7;
+  color: #854d0e;
+  border: 1px solid #fcd34d;
+}
+
+.menu-paste-errors {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.menu-paste-summary {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.menu-paste-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.menu-paste-group__title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--color-text-main);
+}
+
+.menu-paste-group__subtitle {
+  margin: 0.1rem 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-dark);
+}
+
+.menu-paste-section {
+  margin-top: 0.75rem;
+}
+
+.menu-paste-section__title {
+  margin: 0 0 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-dark);
+}
+
+.menu-paste-section__desc {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.menu-paste-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-paste-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--color-border-subtle);
+}
+
+.menu-paste-item__name {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  color: var(--color-text-main);
+}
+
+.menu-paste-item__desc {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.menu-paste-badge {
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.menu-paste-badge--create {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.menu-paste-badge--update {
+  background: #fef3c7;
+  color: #854d0e;
+}
+
+.menu-paste-badge--unchanged {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.menu-paste-missing {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: 0.75rem;
+}
+
+.menu-paste-missing ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.menu-paste-footer-error {
+  margin: 0 1.35rem;
+}
+
+.menu-paste-actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .menu-paste-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .menu-paste-textarea {
+    min-height: 14rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   /festa — atalho para o cardápio
+   ══════════════════════════════════════════════════════ */
+.festa-page__menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.15rem;
+  min-height: 64px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-cream-card);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-main);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.festa-page__menu-link:active {
+  transform: scale(0.99);
+}
+
+.festa-page__menu-link:focus-visible {
+  outline: 3px solid rgba(200, 109, 81, 0.35);
+  outline-offset: 2px;
+}
+
+.festa-page__menu-link-icon {
+  font-size: 1.5rem;
+}
+
+.festa-page__menu-link-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.1rem;
+}
+
+.festa-page__menu-link-text strong {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-terracotta-dark);
+}
+
+.festa-page__menu-link-text span {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.festa-page__menu-link-arrow {
+  font-size: 1.25rem;
+  color: var(--color-terracotta);
+}
+
+/* ══════════════════════════════════════════════════════
+   /festa/cardapio — no desenho do centro de mesa impresso
+   ══════════════════════════════════════════════════════ */
+.cardapio-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-sand);
+  color: var(--color-text-main);
+  padding: 0 1rem calc(2.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cardapio-page__topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 0 0.75rem;
+  background: var(--color-sand);
+}
+
+.cardapio-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-cream-card);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  cursor: pointer;
+}
+
+.cardapio-page__monogram {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  color: var(--color-terracotta);
+}
+
+.cardapio-page__monogram-bar {
+  width: 1px;
+  height: 1.2rem;
+  background: currentColor;
+}
+
+.cardapio-page__main {
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cardapio-page__status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.cardapio-page__status p {
+  margin: 0;
+}
+
+.cardapio-page__jump {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.cardapio-page__jump-link {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-cream-card);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-dark);
+  text-decoration: none;
+}
+
+.cardapio-card {
+  scroll-margin-top: 4.5rem;
+  background: var(--paper-warm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 2rem 1.25rem 1.75rem;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.cardapio-card__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.cardapio-card__title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 2.6rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-text-main);
+}
+
+.cardapio-card__subtitle {
+  margin: 0.3rem 0 0;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-terracotta);
+}
+
+.cardapio-card__rule {
+  display: block;
+  width: 2.75rem;
+  height: 2px;
+  margin-top: 0.75rem;
+  background: var(--color-terracotta);
+  opacity: 0.85;
+}
+
+.cardapio-section + .cardapio-section {
+  margin-top: 1.35rem;
+}
+
+.cardapio-section__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-terracotta-dark);
+}
+
+.cardapio-section__desc {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+}
+
+.cardapio-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cardapio-item {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  line-height: 1.45;
+  color: var(--color-text-main);
+  padding: 0.1rem 0;
+}
+
+.cardapio-items--detailed .cardapio-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0;
+}
+
+.cardapio-items--detailed .cardapio-item + .cardapio-item {
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.cardapio-item__name--accent {
+  font-weight: 600;
+  color: var(--color-terracotta-dark);
+}
+
+.cardapio-item__desc {
+  font-size: 1.08rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.cardapio-item__inline-desc {
+  color: var(--color-text-muted);
+}
+
+.cardapio-page__footer {
+  text-align: center;
+  padding: 1rem 0.5rem 0;
+}
+
+.cardapio-page__thanks {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.cardapio-page__signature {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-script);
+  font-size: 1.9rem;
+  color: var(--color-terracotta);
 }

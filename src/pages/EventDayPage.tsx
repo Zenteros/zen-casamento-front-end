@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { InviteDTO, EventStateDTO } from '../contracts/index.js';
 import { classifySchedule, formatScheduleTime } from '../domain/index.js';
 import { useEventDayContext } from '../hooks/useEventDayContext.js';
 import { Monogram } from '../components/Monogram.js';
 import { apiFetch } from '../lib/api.js';
 import { MediaUploadCard, CameraIcon } from '../components/MediaUploadCard.js';
+import { groupMenuSections } from '../domain/menu.js';
 
 interface EventDayPageProps {
   invite: InviteDTO;
@@ -100,7 +102,11 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
   const [checkInError, setCheckInError] = useState<{ guestId: string; message: string } | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<{ guestId: string; text: string } | null>(null);
   const [isScheduleExpanded, setIsScheduleExpanded] = useState<boolean>(false);
-  const [isMenuExpanded, setIsMenuExpanded] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Mesma tela do QR das mesas (/festa/cardapio), com os mesmos dados.
+  const openMenuScreen = () =>
+    navigate('/festa/cardapio', { state: { backTo: `${location.pathname}${location.search}` } });
   const [activeSection, setActiveSection] = useState<string>('section-now');
 
   // ─── Scroll suave com offset para a barra superior/conteúdo ───
@@ -216,6 +222,9 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
   // ─── Resolução do Cardápio ───
   const menuSections = ctx?.menuSections || [];
   const hasMenu = menuSections.length > 0;
+  const menuTags = groupMenuSections(menuSections).flatMap((g) =>
+    g.title === 'Menu' ? g.sections.map((s) => s.heading ?? g.title) : [g.title]
+  );
   const guestsWithDietaryRestrictions = (ctx?.guestsDietaryInfo || []).filter(
     (g) => g.dietaryRestrictions && g.dietaryRestrictions.trim().length > 0
   );
@@ -332,8 +341,8 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
           </button>
           <button
             type="button"
-            className={`event-day-desktop-nav__btn ${activeSection === 'section-menu' ? 'event-day-desktop-nav__btn--active' : ''}`}
-            onClick={() => scrollToSection('section-menu')}
+            className="event-day-desktop-nav__btn"
+            onClick={openMenuScreen}
           >
             <UtensilsIcon />
             <span>Cardápio</span>
@@ -768,7 +777,7 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
                 <UtensilsIcon /> Cardápio da Celebração
               </h2>
               <span className="event-day-card__subtitle">
-                {hasMenu ? `${menuSections.length} ${menuSections.length === 1 ? 'etapa gastronômica' : 'etapas gastronômicas'}` : 'Gastronomia do Casamento'}
+                {hasMenu ? 'Menu e bebidas' : 'Gastronomia do Casamento'}
               </span>
             </div>
 
@@ -786,49 +795,12 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
 
                 {/* Resumo das etapas/seções em chips */}
                 <div className="event-day-menu-tags" aria-label="Etapas do cardápio">
-                  {menuSections.map((section) => (
-                    <span key={section.id} className="event-day-menu-tag">
-                      {section.title}
+                  {menuTags.map((tag) => (
+                    <span key={tag} className="event-day-menu-tag">
+                      {tag}
                     </span>
                   ))}
                 </div>
-
-                {/* Visualização Completa Inline Expandida */}
-                {isMenuExpanded && (
-                  <div className="event-day-menu-full animate-fade-in" aria-label="Cardápio completo da celebração">
-                    {menuSections.map((section, idx) => (
-                      <div key={section.id} className="event-day-menu-section">
-                        <div className="event-day-menu-section__header">
-                          <span className="event-day-menu-section__step">{idx + 1}ª Etapa</span>
-                          <h3 className="event-day-menu-section__title">{section.title}</h3>
-                          {section.description && (
-                            <p className="event-day-menu-section__desc">{section.description}</p>
-                          )}
-                        </div>
-
-                        {section.items && section.items.length > 0 && (
-                          <ul className="event-day-menu-items">
-                            {section.items.map((item) => (
-                              <li key={item.id} className="event-day-menu-item">
-                                <span className="event-day-menu-item__bullet" aria-hidden="true">&bull;</span>
-                                <div className="event-day-menu-item__content">
-                                  <strong className="event-day-menu-item__name">{item.name}</strong>
-                                  {item.description && (
-                                    <p className="event-day-menu-item__desc">{item.description}</p>
-                                  )}
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-
-                        {idx < menuSections.length - 1 && (
-                          <div className="event-day-menu-section__divider" aria-hidden="true" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {/* Aviso Contextual Discreto de Restrições Alimentares */}
                 {hasDietaryRestrictions && (
@@ -847,19 +819,13 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
                   </div>
                 )}
 
-                {/* Botão de Expansão / Recolhimento */}
                 <button
                   type="button"
                   className="event-day-btn event-day-btn--menu-toggle"
-                  onClick={() => setIsMenuExpanded((prev) => !prev)}
-                  aria-expanded={isMenuExpanded}
+                  onClick={openMenuScreen}
                 >
-                  <span>
-                    {isMenuExpanded
-                      ? 'Recolher cardápio'
-                      : `Ver cardápio completo (${menuSections.length} ${menuSections.length === 1 ? 'etapa' : 'etapas'})`}
-                  </span>
-                  <ChevronDownIcon expanded={isMenuExpanded} />
+                  <span>Ver cardápio e bebidas</span>
+                  <span aria-hidden="true">→</span>
                 </button>
               </div>
             )}
@@ -997,9 +963,9 @@ export const EventDayPage: React.FC<EventDayPageProps> = ({ invite, eventState }
 
         <button
           type="button"
-          className={`event-day-bottom-nav__item ${activeSection === 'section-menu' ? 'event-day-bottom-nav__item--active' : ''}`}
-          onClick={() => scrollToSection('section-menu')}
-          aria-label="Ir para Cardápio"
+          className="event-day-bottom-nav__item"
+          onClick={openMenuScreen}
+          aria-label="Abrir cardápio e bebidas"
         >
           <span className="event-day-bottom-nav__icon"><UtensilsIcon /></span>
           <span className="event-day-bottom-nav__label">Cardápio</span>
