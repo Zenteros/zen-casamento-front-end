@@ -6,6 +6,8 @@ const SLIDE_DURATION_MS = 10000; // 10 segundos por foto
 const POLLING_INTERVAL_MS = 10000; // 10 segundos de polling
 const CURSOR_HIDE_DELAY_MS = 3000; // 3 segundos para ocultar cursor
 const FADE_DURATION_MS = 600; // Duração do fade de transição
+// Capa de abertura: exibida uma vez por abertura do telão, antes da rotação
+const COVER_DURATION_MS = 10000;
 // Vídeo que não começa ou trava sem progresso por esse tempo é pulado
 const VIDEO_STALL_TIMEOUT_MS = 15000;
 // Com um único vídeo no feed e falha de reprodução, espera antes de tentar de novo
@@ -48,11 +50,12 @@ const ExitFullscreenIcon: React.FC = () => (
 export const ScreenPage: React.FC = () => {
   const [items, setItems] = useState<ScreenMediaItemDTO[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [isCursorHidden, setIsCursorHidden] = useState<boolean>(false);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  // Fica true 10s após abrir o telão; enquanto false, a capa cobre a fila (que carrega em segundo plano)
+  const [coverDone, setCoverDone] = useState<boolean>(false);
 
   // Incrementa a cada troca de slide; força remontar o <video> quando o mesmo item repete
   const [playCycle, setPlayCycle] = useState<number>(0);
@@ -111,8 +114,6 @@ export const ScreenPage: React.FC = () => {
       }
     } catch {
       // Falhas de rede transitórias são silenciadas para manter a última foto válida na tela
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -135,7 +136,6 @@ export const ScreenPage: React.FC = () => {
 
           if (!bootstrapRes.ok) {
             setAuthError('Token de acesso ao telão inválido ou não autorizado.');
-            setLoading(false);
             return;
           }
 
@@ -144,7 +144,6 @@ export const ScreenPage: React.FC = () => {
           setAuthError(null);
         } catch {
           setAuthError('Falha ao conectar com o servidor para autenticar o telão.');
-          setLoading(false);
           return;
         }
       }
@@ -157,6 +156,12 @@ export const ScreenPage: React.FC = () => {
     const interval = setInterval(fetchFeed, POLLING_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [fetchFeed]);
+
+  // 2.1 Capa de abertura: conta 10s desde a abertura, independente da fila
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCoverDone(true), COVER_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 3. Avanço de slide com fade (usado pelo timer das fotos e pelo fim/falha dos vídeos)
   const advance = useCallback(() => {
@@ -176,10 +181,22 @@ export const ScreenPage: React.FC = () => {
   const activeId = activeItem?.id;
   const activeIsVideo = activeItem?.type === 'VIDEO';
   const hasMultipleItems = items.length > 1;
+  // A rotação só começa depois da capa; com fila vazia a capa segue até chegar o primeiro registro
+  const showCover = !coverDone || items.length === 0;
+  const rotationActive = !showCover;
+
+  // Pré-carrega a primeira foto enquanto a capa está na tela
+  const firstItem = items[0];
+  useEffect(() => {
+    if (rotationActive || !firstItem || firstItem.type !== 'PHOTO') return;
+    const img = new Image();
+    img.crossOrigin = 'use-credentials';
+    img.src = getMediaUrl(firstItem.id);
+  }, [rotationActive, firstItem, getMediaUrl]);
 
   // 3.1 Fotos: 10 segundos cada. Vídeos não usam timer; avançam ao terminar ou falhar.
   useEffect(() => {
-    if (!activeId || activeIsVideo || !hasMultipleItems) return;
+    if (!rotationActive || !activeId || activeIsVideo || !hasMultipleItems) return;
 
     // Pré-carrega a próxima foto (vídeos carregam ao entrar em cena)
     const list = itemsRef.current;
@@ -197,10 +214,10 @@ export const ScreenPage: React.FC = () => {
         clearTimeout(slideTimerRef.current);
       }
     };
-  }, [activeId, activeIsVideo, hasMultipleItems, playCycle, advance, getMediaUrl]);
+  }, [rotationActive, activeId, activeIsVideo, hasMultipleItems, playCycle, advance, getMediaUrl]);
 
   // 3.2 Vídeos: reprodução automática muda, fim -> próximo, falha/travamento -> próximo
-  const videoKey = activeIsVideo && activeId ? `${activeId}:${playCycle}` : null;
+  const videoKey = rotationActive && activeIsVideo && activeId ? `${activeId}:${playCycle}` : null;
 
   const finishVideo = useCallback(
     (reason: 'ended' | 'failed') => {
@@ -328,20 +345,9 @@ export const ScreenPage: React.FC = () => {
             </p>
           </div>
         </div>
-      ) : loading ? (
+      ) : showCover ? (
         /* ══════════════════════════════════════════════════════════════
-            ESTADO DE CARREGAMENTO
-            ══════════════════════════════════════════════════════════════ */
-        <div className="screen-empty-state animate-fade-in">
-          <div className="screen-empty-state__inner">
-            <Monogram variant="hero" size="lg" />
-            <div className="screen-empty-state__spinner" />
-            <p className="screen-empty-state__subtitle">Conectando ao telão da celebração...</p>
-          </div>
-        </div>
-      ) : items.length === 0 ? (
-        /* ══════════════════════════════════════════════════════════════
-            ESTADO VAZIO: Nenhuma foto aprovada ainda
+            CAPA DE ABERTURA: 10s ao abrir o telão; mantida enquanto a fila estiver vazia
             ══════════════════════════════════════════════════════════════ */
         <div className="screen-empty-state animate-fade-in">
           <div className="screen-empty-state__backdrop" />
@@ -365,7 +371,7 @@ export const ScreenPage: React.FC = () => {
         /* ══════════════════════════════════════════════════════════════
            SLIDESHOW CONTÍNUO DE FOTOS APROVADAS
            ══════════════════════════════════════════════════════════════ */
-        <div className="screen-stage">
+        <div className="screen-stage animate-fade-in">
           {/* Fundo derivado da própria foto com blur suave para proporções não-16:9 */}
           {activeItem && !activeIsVideo && (
             <div
