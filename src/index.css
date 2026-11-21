@@ -9360,6 +9360,18 @@ html, body {
   margin: 0;
 }
 
+.festa-page__message {
+  font-family: var(--font-serif);
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0 1rem;
+}
+
 .festa-page__main {
   width: 100%;
   max-width: 480px;

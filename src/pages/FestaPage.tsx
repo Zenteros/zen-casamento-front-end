@@ -59,6 +59,9 @@ export const FestaPage: React.FC = () => {
       <header className="festa-page__header">
         <Monogram variant="hero" />
         <p className="festa-page__names">Patrício &amp; Evandria</p>
+        <p className="festa-page__message">
+          Obrigado por celebrar com a gente. Vamos guardar cada registro desse dia com muito carinho. ❤️
+        </p>
       </header>
 
       <main className="festa-page__main">
