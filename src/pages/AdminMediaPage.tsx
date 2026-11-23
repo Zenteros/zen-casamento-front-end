@@ -140,6 +140,10 @@ export const AdminMediaPage: React.FC = () => {
   const [diskLoading, setDiskLoading] = useState<boolean>(false);
   const [diskError, setDiskError] = useState<string | null>(null);
 
+  // Seleção para download em lote (id → tamanho em bytes, para mostrar o total)
+  const [selected, setSelected] = useState<Map<string, number>>(() => new Map());
+  const [selectingAll, setSelectingAll] = useState<boolean>(false);
+
   const fetchDisk = useCallback(async () => {
     setDiskLoading(true);
     setDiskError(null);
@@ -356,6 +360,75 @@ export const AdminMediaPage: React.FC = () => {
       // Se era PENDING, re-sincroniza com o servidor
       await fetchMedia(false);
     }
+  };
+
+  // 5b. Seleção e download em lote (ZIP com uma pasta por remetente)
+  useEffect(() => {
+    // Trocar de aba/tipo começa uma seleção nova, para não baixar o que não está à vista
+    setSelected(new Map());
+  }, [statusFilter, typeFilter]);
+
+  const toggleSelected = (item: AdminMediaItemDTO) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.set(item.id, item.sizeBytes);
+      return next;
+    });
+  };
+
+  const handleSelectAllMatching = async () => {
+    setSelectingAll(true);
+    try {
+      const next = new Map<string, number>();
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const params = new URLSearchParams();
+        if (statusFilter !== 'ALL') params.set('status', statusFilter);
+        if (typeFilter !== 'ALL') params.set('type', typeFilter);
+        params.set('page', String(page));
+        params.set('limit', '100');
+        const res = await apiFetch(`/api/v1/admin/media?${params.toString()}`, { method: 'GET' });
+        if (res.status === 401) {
+          navigate('/admin/login', { replace: true });
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        for (const it of (data.items || []) as AdminMediaItemDTO[]) next.set(it.id, it.sizeBytes);
+        totalPages = data.pagination?.totalPages ?? 1;
+        page += 1;
+      } while (page <= totalPages && page <= 100);
+      setSelected(next);
+    } catch {
+      setNotice({ tone: 'error', message: 'Não foi possível marcar todas as mídias. Tente novamente.' });
+    } finally {
+      setSelectingAll(false);
+    }
+  };
+
+  const handleDownloadSelected = () => {
+    if (selected.size === 0) return;
+    // Formulário nativo: o navegador grava o ZIP direto no disco (sem carregar GBs na memória da página)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = buildApiUrl('/api/v1/admin/media/archive');
+    form.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'ids';
+    input.value = Array.from(selected.keys()).join(',');
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+
+    const totalBytes = Array.from(selected.values()).reduce((sum, b) => sum + b, 0);
+    showNotice({
+      tone: 'success',
+      message: `Preparando o ZIP com ${selected.size} arquivo${selected.size > 1 ? 's' : ''} (${formatDiskBytes(totalBytes)}), uma pasta por remetente. O download começa em instantes.`,
+    });
   };
 
   // 6. Exclusão definitiva (registro + original + derivados). Rejeitar continua só tirando do telão.
@@ -729,6 +802,56 @@ export const AdminMediaPage: React.FC = () => {
           </div>
         </section>
 
+        {/* Seleção para download em lote */}
+        {pagination.totalItems > 0 && (() => {
+          const selectedBytes = Array.from(selected.values()).reduce((sum, b) => sum + b, 0);
+          const allSelected = selected.size >= pagination.totalItems && items.every((it) => selected.has(it.id));
+          const scopeLabel = typeFilter === 'VIDEO' ? 'todos os vídeos' : typeFilter === 'PHOTO' ? 'todas as fotos' : 'todos';
+          return (
+            <section className="admin-selection-bar" aria-label="Seleção para download em lote">
+              <div className="admin-selection-bar__info" aria-live="polite">
+                {selected.size > 0 ? (
+                  <>
+                    <strong>{selected.size} selecionada{selected.size > 1 ? 's' : ''}</strong>
+                    <span> · {formatDiskBytes(selectedBytes)}</span>
+                  </>
+                ) : (
+                  <span>Marque para baixar os originais em um ZIP, com uma pasta para cada pessoa que enviou.</span>
+                )}
+              </div>
+              <div className="admin-selection-bar__actions">
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--outline admin-btn--sm"
+                  disabled={selectingAll || allSelected}
+                  onClick={handleSelectAllMatching}
+                >
+                  {selectingAll ? 'Marcando…' : `Marcar ${scopeLabel} (${pagination.totalItems})`}
+                </button>
+                {selected.size > 0 && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn--outline admin-btn--sm"
+                    onClick={() => setSelected(new Map())}
+                  >
+                    Desmarcar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="admin-btn admin-btn--primary admin-btn--sm"
+                  disabled={selected.size === 0 || selectingAll}
+                  onClick={handleDownloadSelected}
+                  title="Baixa os arquivos originais, sem compressão, separados por remetente"
+                >
+                  <DownloadIcon />
+                  <span>Baixar selecionadas (.zip)</span>
+                </button>
+              </div>
+            </section>
+          );
+        })()}
+
         {/* ══════════════════════════════════════════════════════
             4. FEEDBACK TOAST FLUTUANTE COM UNDO
             ══════════════════════════════════════════════════════ */}
@@ -806,12 +929,13 @@ export const AdminMediaPage: React.FC = () => {
               const isProcessingFailed = item.processingStatus === 'FAILED';
               const isProcessingUnsupported = item.processingStatus === 'UNSUPPORTED';
               const isActionRunning = actionInProgressId === item.id || deletingId === item.id;
+              const isSelected = selected.has(item.id);
 
 
               return (
                 <div
                   key={item.id}
-                  className={`admin-media-card ${isApproved ? 'admin-media-card--approved' : isRejected ? 'admin-media-card--rejected' : ''}`}
+                  className={`admin-media-card ${isApproved ? 'admin-media-card--approved' : isRejected ? 'admin-media-card--rejected' : ''} ${isSelected ? 'admin-media-card--selected' : ''}`}
                 >
                   {/* Visualização de Mídia (Thumb WebP para Fotos / Card Informativo para Vídeos) */}
                   <div
@@ -842,6 +966,20 @@ export const AdminMediaPage: React.FC = () => {
                         <span className="admin-media-card__video-size">{formatFileSize(item.sizeBytes)}</span>
                       </div>
                     )}
+
+                    {/* Marcação para download em lote */}
+                    <label
+                      className="admin-media-card__select"
+                      onClick={(e) => e.stopPropagation()}
+                      title={isSelected ? 'Desmarcar' : 'Marcar para baixar'}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelected(item)}
+                        aria-label={`Marcar ${item.originalFileName} de ${item.familyTitle} para download`}
+                      />
+                    </label>
 
                     {/* Badge de Tipo */}
                     <span className="admin-media-card__type-badge">

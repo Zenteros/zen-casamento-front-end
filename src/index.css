@@ -4699,6 +4699,66 @@ html, body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* ─── 5b. Barra de seleção para download em lote ─── */
+.admin-selection-bar {
+  background-color: var(--color-white);
+  border: 1px solid rgba(107, 92, 87, 0.12);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.admin-selection-bar__info strong {
+  color: var(--color-text-main);
+}
+
+.admin-selection-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .admin-selection-bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.admin-media-card__select {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: rgba(26, 22, 21, 0.55);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+.admin-media-card__select input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-terracotta);
+}
+
+.admin-media-card.admin-media-card--selected {
+  outline: 3px solid var(--color-terracotta);
+  outline-offset: 2px;
+}
+
 /* ─── 6. Grade de Cards de Mídia ─── */
 .admin-media-grid {
   display: grid;
